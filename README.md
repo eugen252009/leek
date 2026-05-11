@@ -1,199 +1,468 @@
-# The mC Whitepaper
+Mechanical C (mC)
 
-**Mechanical C — Deterministic Systems Programming Through Mechanical Rules**
+> Visible execution. Deterministic memory. Structural parallelism.
 
-> “Do not hide complexity. Organize it.”
 
----
 
-### 1. Introduction
+Mechanical C (mC) is an experimental systems programming language focused on:
 
-Mechanical C (mC) is a systems programming language concept designed around one central idea:
+explicit dataflow,
 
-> The programmer should be able to understand memory, lifetime, data flow, and performance directly from the structure of the code itself.
+deterministic scope-based memory,
 
-Modern programming languages often solve memory safety through hidden runtimes, garbage collectors, complex ownership systems, implicit allocations, or heavy compiler analysis. mC takes a different approach.
+visible execution paths,
 
-Instead of hiding complexity behind abstractions, mC attempts to make the underlying mechanics visible, deterministic, and mechanically understandable. The goal is not to eliminate complexity. The goal is to align software structure with how memory and processors actually work.
+compiler-driven scheduling,
 
----
+structural simplicity.
 
-### 2. Core Philosophy
 
-mC is built around a small number of invariant rules. These rules are absolute.
+mC treats programs as deterministic transformation graphs instead of opaque runtime processes.
 
-Everything else—interfaces, threading, abstractions, pipelines, libraries—must operate within these rules. **No language feature may ever override or bypass these core mechanics.** The language is intentionally designed to:
+The goal is not to hide complexity behind abstractions, but to make execution understandable, analyzable, and optimizable.
 
-* Favor explicitness over magic.
-* Favor deterministic lifetimes over hidden runtimes.
-* Favor reusable memory over repeated allocation.
-* Favor visible costs over implicit behavior.
-* Map cleanly to the stack, making aggressive, predictable inlining the default behavior.
 
 ---
 
-### 3. The Five Core Rules
+Philosophy
 
-#### Rule 1 — Scopes Own Memory
+Modern languages often hide:
 
-Every `{}` block defines a scope. A scope is not merely syntactic structure; it is a physical memory region. All data created inside a scope belongs to that scope.
+ownership,
 
-When the scope ends:
+memory movement,
 
-* The data is destroyed.
-* References become invalid.
-* Temporary memory is released deterministically.
+synchronization,
 
-```c
+execution order,
+
+dependency chains.
+
+
+mC attempts to make those mechanics visible again.
+
+Programs are modeled similarly to:
+
+assembly lines,
+
+processing pipelines,
+
+scheduling graphs,
+
+deterministic state transitions.
+
+
+The language is intentionally built around a very small set of globally consistent rules.
+
+
+---
+
+Core Principles
+
+1. Scope Is Law
+
+Every {} block defines:
+
+a lifetime boundary,
+
+an ownership region,
+
+an allocation scope.
+
+
+Objects created inside a scope are destroyed automatically when the scope ends.
+
 {
-    Buffer local_buffer = create_buffer(1024);
-} // local_buffer is deterministically released here.
+    let buffer = alloc(1024)
+} // buffer destroyed here
 
-```
+There is:
 
-The scope owns the data — not the variable. Variables are only handles into the scope’s memory region.
+no garbage collector,
 
-#### Rule 2 — Upward Escapes are Explicit, Downward Flow is Free
+no hidden lifetime extension,
 
-Data flow is strictly directional, tied to the mechanical reality of the stack.
+no invisible ownership transfer.
 
-**Downward Flow (Borrowing):** Passing a reference to a child scope or a nested function is implicitly safe and zero-cost. The parent scope guarantees the memory will outlive the child.
-
-```c
-{
-    Buffer data = load_data();
-    process(data); // Safe. 'process' is a child scope and dies first.
-}
-
-```
-
-**Upward Escape (Moving/Copying):** Data may *only* leave a scope upwards through explicit action. Hidden lifetime extension is forbidden.
-To escape a scope, the programmer must use explicit mechanisms like `return`, a built-in `move()`, or `copy()`.
-
-```c
-fn get_data() -> Buffer {
-    Buffer temp = create_buffer(1024);
-    return move(temp); // Explicit transfer of ownership
-}
-
-```
-
-The programmer must always know when memory is duplicated and when ownership changes.
-
-#### Rule 3 — Reuse Memory Instead of Recreating It
-
-mC encourages reusable memory regions and reusable buffers.
-
-The preferred design is:
-
-```c
-Buffer reusable = create_buffer(1024);
-for (item in data) {
-    reusable.reset();
-    process(item, reusable);
-}
-
-```
-
-Repeated allocation inside loops is treated as an architectural smell. The language and linter encourage stable lifetimes, cache locality, and allocator awareness (e.g., using Arenas).
-
-#### Rule 4 — `impure` Marks Contact With the External World
-
-By default, functions are deterministic. Any operation involving files, networking, clocks, devices, external APIs, or raw C-pointers must be explicitly marked as `impure`.
-
-```c
-impure fn open_file(path: String) -> File { ... }
-
-```
-
-`impure` defines a strict boundary between deterministic computation and unpredictable external systems. Data crossing this boundary must be validated. After leaving an impure boundary, deterministic processing resumes. An error cannot escape an impure block unhandled.
-
-#### Rule 5 — The Language Must Remain Mechanically Explainable
-
-Every language feature must be explainable through the core rules. No feature may violate scope ownership, deterministic lifetime behavior, explicit data movement, or visible external interaction.
-
-If a feature requires bending the five rules to work, it does not belong in mC. The language must remain mechanically understandable, architecturally predictable, and mentally traceable.
-
----
-
-### 4. Memory Model and Allocators
-
-mC uses region-oriented memory semantics. Memory belongs to scopes. Because scopes behave like stack frames, the compiler can heavily optimize and inline code without guessing.
-
-For dynamic needs, mC relies on explicit allocator injection (like Arenas) rather than a global magic heap. When an Arena's scope ends, all memory within it vanishes instantly. This eliminates use-after-free, hidden heap ownership, and uncontrolled fragmentation.
-
----
-
-### 5. Explicit Copying
-
-Copying memory is considered a meaningful architectural decision. Therefore, copies are explicit, visible, and lintable.
-
-```c
-Buffer backup = copy(original_data);
-
-```
-
-Copies are not forbidden, but they are intentionally visible to expose performance costs directly in the syntax.
-
----
-
-### 6. The Role of the Linter
-
-The compiler guarantees structural correctness (The Rules). The linter acts as a mechanical mentor.
-
-The linter is designed to teach lifetime awareness, cache-friendly design, and deterministic structure. It will warn about:
-
-* Repeated allocations in loops.
-* Unnecessary copies where a reference (downward flow) would suffice.
-* Unhandled validation paths at `impure` boundaries.
-
-Warnings are advisory, but they guide the developer toward the "mechanical ideal."
-
----
-
-### 7. Simplicity vs. Simplicity Illusion
-
-mC does not attempt to eliminate complexity. Modern systems are inherently complex. Instead, mC attempts to organize complexity, expose costs, and align software structure with hardware reality.
-
-The language favors visible architecture, explicit lifetimes, deterministic structure, and mechanical reasoning over hidden automation.
-
----
-
-### 8. Intended Outcome
-
-mC aims to make memory behavior, ownership, dataflow, performance implications, and lifetime boundaries as visible as control flow already is today.
-
-The ideal mC developer should be able to read code and immediately infer where memory lives, when it dies, when copying occurs, where nondeterminism enters the system, and where performance costs exist.
-
-> “Everything in mC must remain explainable through a small set of mechanical rules.”
 
 
 ---
 
-### 9. Near-Zero Cost Testing (Mechanical Validation)
+2. Data Cannot Escape Implicitly
 
-In mC, testing is not an afterthought or a separate framework—it is a direct consequence of **Rule 4 (impure)**. Because the language enforces a strict boundary between deterministic logic and the external world, validation becomes a mechanical certainty.
+Data may only leave a scope through:
 
-#### The "Pure" Advantage
+explicit copy,
 
-Since `pure` functions are mathematically deterministic (same input always equals same output), they can be validated with zero setup, zero mocking, and zero state management.
+explicit references,
 
-```c
-// Built-in validation syntax
-assert(calculate_dimensions, 10, 20).toBe(200);
+deterministic return.
 
-```
 
-* **Static Execution:** The compiler can choose to execute these assertions during transpilation. If a test fails, the "machine" doesn't even get built.
-* **Loop Validation:** Testing an entire range of tolerances becomes a simple loop.
-* **Production Erasure:** Since mC transpiles to C, all test logic is stripped out in the release build. You pay for the validation during development, but the final "product" carries zero overhead.
+Copies must always be visible.
 
-#### Why it’s "Near-Free"
+copy output <- local_buffer
 
-It is not 100% free (it costs developer thought and a few milliseconds of compile time), but compared to traditional suites, it eliminates:
+The goal is to make memory movement mechanically understandable.
 
-1. **Context-Switching:** You test where you code.
-2. **Runtime-Dependency:** No test-runner or VM required.
-3. **Mocking-Hell:** Since dependencies are passed downward (Rule 2), you just pass the data you want to test.
 
-> “A machine is not finished when it is assembled, but when it is measured. mC makes the measurement as simple as the assembly.”
+---
+
+3. Pure By Default
+
+Functions are deterministic unless explicitly marked otherwise.
+
+fn parse(data) -> result
+
+Pure functions:
+
+cannot perform IO,
+
+cannot access hidden global state,
+
+cannot use timers/network/randomness,
+
+cannot mutate external state.
+
+
+This enables:
+
+deterministic execution,
+
+aggressive compiler optimization,
+
+automatic dependency analysis,
+
+structural parallelization.
+
+
+
+---
+
+4. Impure Is Explicit
+
+External uncertainty must be isolated explicitly.
+
+impure fn read_file(path) -> Buffer
+
+Impure functions include:
+
+file IO,
+
+networking,
+
+OS interaction,
+
+timers,
+
+unsafe/raw memory access.
+
+
+Impure boundaries are visible execution boundaries.
+
+
+---
+
+5. Parallelism Emerges From Structure
+
+mC does not treat parallelism as manual thread orchestration.
+
+Instead:
+
+pure scopes,
+
+independent dependencies,
+
+isolated state,
+
+
+become naturally parallelizable.
+
+The compiler analyzes the execution graph and schedules work automatically.
+
+Optional parallel annotations are treated as:
+
+validation contracts,
+
+linter verification zones,
+
+structural hints.
+
+
+They do not directly spawn threads.
+
+
+---
+
+The Scope Graph Model
+
+Internally, mC programs are represented as:
+
+> Directed Acyclic Scope Graphs (DASG)
+
+
+
+Each scope represents:
+
+Input State
+ → Transformation
+ → Output State
+
+The compiler tracks:
+
+ownership,
+
+dependencies,
+
+purity,
+
+memory regions,
+
+scheduling opportunities.
+
+
+
+---
+
+Compiler Design Goals
+
+The compiler is responsible for the complexity — not the language.
+
+mC aims to keep syntax and mental models simple while allowing the compiler to:
+
+fuse scopes,
+
+inline transformations,
+
+reuse buffers,
+
+schedule independent work,
+
+optimize cache locality,
+
+compute critical paths,
+
+parallelize pure subgraphs.
+
+
+
+---
+
+Memory Model
+
+mC uses deterministic scope-based lifetime management.
+
+Typical allocation model:
+
+Scope Start  → Allocate Region
+Scope End    → Release Region
+
+This enables:
+
+predictable memory behavior,
+
+low fragmentation,
+
+cheap cleanup,
+
+strong cache locality.
+
+
+The language encourages:
+
+buffer reuse,
+
+in-place transformation,
+
+region-oriented thinking.
+
+
+
+---
+
+Scheduling Model
+
+The compiler transforms programs into execution graphs.
+
+Independent pure scopes may execute:
+
+concurrently,
+
+out-of-order,
+
+fused into larger execution units.
+
+
+This is conceptually similar to:
+
+CPU out-of-order execution,
+
+job scheduling,
+
+pipeline processing,
+
+ECS systems,
+
+industrial flow systems.
+
+
+The runtime acts as:
+
+a DAG executor,
+
+a worker scheduler,
+
+a dependency resolver.
+
+
+
+---
+
+Visibility Over Magic
+
+One of the primary goals of mC is:
+
+> The execution path should never become invisible.
+
+
+
+Possible future tooling:
+
+live dependency visualization,
+
+execution graph export,
+
+critical path analysis,
+
+inline flow tracing,
+
+purity visualization,
+
+buffer lifetime overlays.
+
+
+Example:
+
+impure read_file
+        ↓
+pure parse_json
+        ↓
+pure extract_ids
+        ↓
+pure aggregate
+
+
+---
+
+Structural Tooling Vision
+
+The compiler/linter may eventually provide:
+
+dependency overlays,
+
+flow tracing,
+
+parallelization hints,
+
+allocation warnings,
+
+scope visualizations.
+
+
+Example:
+
+depends on:
+  parse_json()
+    depends on:
+      read_file()
+
+The goal is to make:
+
+dataflow,
+
+ownership,
+
+dependencies,
+
+purity,
+
+execution structure
+
+
+visible directly inside development tools.
+
+
+---
+
+OOP Philosophy
+
+mC does not reject OOP.
+
+However:
+
+classes remain scope-bound,
+
+ownership rules still apply,
+
+abstraction cannot bypass mechanical constraints.
+
+
+OOP becomes:
+
+organizational syntax,
+
+not hidden runtime behavior.
+
+
+
+---
+
+Design Goals
+
+Goal	Priority
+
+Visible execution	High
+Deterministic memory	High
+Structural simplicity	High
+Predictable performance	High
+Automatic scheduling	High
+Hidden runtime behavior	Forbidden
+Implicit ownership transfer	Forbidden
+Invisible synchronization	Forbidden
+
+
+
+---
+
+Long-Term Vision
+
+mC explores the idea that programs can be:
+
+mechanically understandable,
+
+structurally analyzable,
+
+naturally parallelizable,
+
+visually explainable.
+
+
+The language is intentionally experimental and currently focused on:
+
+core semantics,
+
+compiler architecture,
+
+execution modeling,
+
+dependency visibility,
+
+deterministic scheduling.
+
+
+
+---
+
+Final Principle
+
+> Syntax may evolve. Mechanics must remain visible.
