@@ -1,196 +1,580 @@
-## 📐 The Mechanical Axiomatic System for Leek (.lk)
+Leek (.lk)
 
-### A1 — Scope-Containment (Lexical Isolation)
-Every entity (variable, memory region, value, or binding) exists strictly within a uniquely defined, hierarchically nested scope.
+A Mechanical Axiomatic Programming Model
 
-- No entity is directly visible or accessible outside of its declaring scope.
-- Access is restricted exclusively to the current scope and its nested descendants.
-- Scope boundaries form the fundamental structural unit of execution, memory ownership, and dependency derivation.
+Draft Whitepaper — Foundational Specification (Pre-Semantic Phase)
+
 
 ---
 
-### A2 — Single Escape Path (The Return Axiom)
-The only permitted mechanism for transferring data from a child scope into its parent scope is an explicit return path.
+Abstract
 
-- Implicit upward escapes do not exist.
-- References, pointers, or handles may never outlive their originating scope.
-- Hidden mutation channels, global state leakage, or undeclared side-paths are structurally forbidden.
+Leek (.lk) is an experimental systems programming language and semantic execution model built around a fixed axiomatic core. Unlike conventional languages that evolve feature-first and retroactively attempt to enforce safety, Leek begins from a small set of immutable mechanical invariants from which semantics, optimization behavior, memory lifetime, execution flow, and effect isolation are derived.
 
-This guarantees that all upward data movement remains explicit, finite, and compiler-verifiable.
+The central thesis of Leek is:
 
----
+> Simplicity, determinism, memory safety, and parallelizability can emerge naturally from structural constraints rather than from increasingly complex runtime systems, borrow analysis, or garbage collection.
 
-### A3 — Deterministic Purity & Passive Export
-Operations are mechanically divided into two execution classes:
 
-#### Pure (Deterministic)
-Pure operations are fully deterministic transformations:
 
-Input → Output
+Leek intentionally rejects:
 
-- Identical input always produces identical output.
-- No external mutable state may be read or modified.
-- No hidden mutation or uncontrolled aliasing may occur.
-- Internal execution remains fully analyzable and causally closed.
+garbage collectors,
 
-#### Passive Outbound Exception
-Pure scopes may emit already-determined data into passive outbound sinks (for example: debug output, logging, or printing), provided that:
+implicit shared mutable state,
 
-- the outbound operation cannot mutate or influence program computation,
-- no external state is observed during emission,
-- and the operation introduces no inbound causal dependency back into the execution graph.
+hidden aliasing,
 
-Outbound observation is therefore treated as non-participatory in computational causality.
+unrestricted lifetime escape,
 
-#### Impure (Stateful)
-Impure execution includes any operation involving:
+and uncontrolled side effects.
 
-- external mutable state,
-- nondeterministic behavior,
-- hardware interaction,
-- FFI boundaries,
-- timing,
-- interrupts,
-- synchronization primitives,
-- or externally observable mutation.
 
-Impurity propagates transitively across dependent execution paths.
+Instead, the language defines a scope-driven execution universe in which:
+
+lifetimes are explicit,
+
+memory is arena-bound,
+
+effects are isolated,
+
+and dependency graphs emerge mechanically from structure itself.
+
+
+This document describes the foundational axioms of the system and the philosophical constraints under which the language may evolve.
+
 
 ---
 
-### A4 — Controlled Effect Boundary (Context Isolation)
-Interactions with the external environment are separated by directional causality.
+1. Design Goals
 
-#### Inbound Effects (Mutating / Observational)
-Operations that:
-- observe mutable external state,
-- alter external systems,
-- disrupt deterministic execution flow,
-- or inject nondeterministic information
+Leek attempts to combine:
 
-are restricted exclusively to impure scopes.
+the mechanical simplicity of C Programming Language,
 
-Pure execution may never depend on inbound impure state.
+the memory safety goals of Rust,
 
-#### Outbound Effects (Passive)
-Pure scopes may export finalized data outward through passive sinks.
+and the deterministic reasoning strengths commonly associated with Haskell,
 
-Because outbound data flow cannot influence internal computation, the dependency graph remains causally clean and mechanically optimizable.
+
+without inheriting the full complexity footprint of:
+
+garbage-collected runtimes,
+
+ownership-heavy borrow systems,
+
+or unrestricted heap semantics.
+
+
+The language prioritizes:
+
+deterministic execution,
+
+structural memory safety,
+
+compiler visibility,
+
+explicit lifetime topology,
+
+and naturally derivable optimization graphs.
+
+
 
 ---
 
-### A5 — Arena-Based Lifetime Model
-Memory ownership is structurally bound to lexical scope topology.
+2. Philosophical Position
 
-- Every allocation belongs to exactly one arena.
-- Every arena belongs to exactly one owning scope or tightly defined scope cluster.
-- Upon scope termination, the entire arena is deallocated atomically.
-- Partial runtime deallocation does not exist.
+Leek is not designed around “maximum feature inclusion”.
 
-This removes fragmented ownership patterns and eliminates lifetime ambiguity.
+Instead, the language treats the axioms as hard physical laws.
+
+If a language feature cannot exist without violating the axioms, then the feature is rejected rather than the axioms being weakened.
+
+The project therefore follows this hierarchy:
+
+Axioms
+  ↓
+Semantics
+  ↓
+Intermediate Representation
+  ↓
+Frontend Syntax
+  ↓
+Tooling / Ecosystem
+
+The frontend is not the source of truth.
+
+The axioms are.
+
 
 ---
 
-### A6 — Referential Closure (Controlled Aliasing)
-Every value possesses a fully bounded and compiler-verifiable reference set R(v).
+3. Core Principle
 
-- R(v) defines the complete set of all valid references to value v.
-- No hidden or untracked aliasing paths may exist.
-- Upon termination of the owning scope:
+The system assumes:
+
+> Hidden complexity is the root cause of unsafe and unoptimizable software systems.
+
+
+
+Leek therefore attempts to make:
+
+lifetimes visible,
+
+effects visible,
+
+dependencies visible,
+
+ownership visible,
+
+and execution ordering visible.
+
+
+The compiler should not “guess” program structure through expensive heuristics if the structure can instead be mechanically derived from the language itself.
+
+
+---
+
+4. The Mechanical Axioms
+
+A1 — Scope Containment (Lexical Isolation)
+
+Every entity:
+
+variable,
+
+value,
+
+allocation,
+
+reference,
+
+or memory region
+
+
+exists strictly within a uniquely defined lexical scope.
+
+Entities are only visible:
+
+inside their defining scope,
+
+or inside nested child scopes.
+
+
+No implicit upward visibility exists.
+
+
+---
+
+A2 — Single Escape Path (Return Exclusivity)
+
+The only legal mechanism for transferring data from a child scope into a parent scope is an explicit return operation.
+
+Implicit lifetime escape is forbidden.
+
+References may not outlive:
+
+their defining scope,
+
+nor the arena that owns them.
+
+
+Global mutation channels and hidden side effects are excluded from the pure execution model.
+
+
+---
+
+A3 — Purity and Effect Classification
+
+Every operation belongs to exactly one category:
+
+Pure
+
+Deterministic transformations:
+
+identical input always produces identical output,
+
+no externally visible mutation occurs,
+
+no impure state may be observed.
+
+
+Impure
+
+Operations interacting with:
+
+hardware,
+
+external state,
+
+system clocks,
+
+interrupts,
+
+non-deterministic sources,
+
+foreign interfaces,
+
+or mutable external memory.
+
+
+Impure behavior is explicitly isolated.
+
+
+---
+
+A4 — Controlled Effect Boundaries
+
+External interaction is directional.
+
+Inbound Effects
+
+Any operation that:
+
+reads mutable external state,
+
+mutates global state,
+
+or introduces non-determinism
+
+
+must occur inside impure scopes.
+
+Outbound Effects
+
+Pure scopes may emit observational effects:
+
+logging,
+
+printing,
+
+tracing,
+
+
+provided such effects:
+
+do not mutate computational state,
+
+and do not alter determinism.
+
+
+
+---
+
+A5 — Arena-Based Lifetime Model
+
+Memory allocation is structurally bound to scopes.
+
+Each scope owns:
+
+a dedicated arena,
+
+or a tightly defined arena cluster.
+
+
+When the owning scope terminates:
+
+the entire arena terminates atomically.
+
+
+Partial runtime deallocation is not part of the core model.
+
+The language intentionally avoids:
+
+general-purpose heap ownership,
+
+ad-hoc free(),
+
+and unrestricted allocation lifetimes.
+
+
+
+---
+
+A6 — Referential Closure
+
+Every value maintains a compiler-trackable reference set:
+
+R(v)
+
+representing all valid references to value v.
+
+Upon scope termination:
 
 R(v) = ∅
 
-This guarantees that reference topology remains mechanically finite, structurally analyzable, and safe for aggressive compiler optimization.
+No hidden aliasing paths may exist outside compiler visibility.
+
+This guarantees:
+
+analyzable ownership,
+
+deterministic memory topology,
+
+and mechanically derivable dependency graphs.
+
+
 
 ---
 
-### A7 — Dependency Derivation (The Graph Axiom)
-The program dependency graph is not reconstructed heuristically after parsing; it emerges directly from the axiomatic structure itself.
+A7 — Dependency Graph Derivation
 
-Graph edges arise exclusively through:
+Program dependency graphs are not manually constructed abstractions.
 
-- read-before-write dependencies,
-- write causalities,
-- scope nesting,
-- explicit return flow,
-- and controlled effect boundaries.
+They emerge directly from:
 
-Because the graph is mechanically derived from structural rules rather than inferred probabilistically, the compiler can perform highly reliable optimization decisions regarding:
+scope nesting,
 
-- parallelization,
-- vectorization,
-- inlining,
-- memory scheduling,
-- and execution isolation.
+read/write relationships,
 
----
+return flows,
 
-# 📦 Ecosystem & Ingestion Axioms
+and effect boundaries.
 
-## A8 — Dual Ingestion Path (add vs. add-unpure)
 
-### add (Default / Deterministic Path)
-The standard ingestion path accepts only deterministic, structurally pure `.lk` logic.
+This enables:
 
-- Hidden side-effect injection is mechanically rejected.
-- Imported code remains causally analyzable.
-- Pure modules may treat external state only as explicit immutable input.
+deterministic scheduling,
 
-### add-unpure (Explicit Exception Boundary)
-Impure dependencies must be declared explicitly.
+automatic parallelization,
 
-This includes:
-- FFI bridges,
-- native binaries,
-- hardware interaction,
-- system interfaces,
-- or nondeterministic execution sources.
+SIMD eligibility analysis,
 
-The impurity boundary is therefore visible, explicit, and traceable within the dependency graph.
+and optimization visibility
 
-### Standard Library
-To reduce dependency fragmentation and fragile micro-import ecosystems, critical low-level impure primitives are provided as part of the official runtime environment.
+
+without requiring opaque runtime systems.
+
 
 ---
 
-## A9 — Subrepo Isolation (Immutable Vendor Boundary)
+5. Derived Extension Principle
 
-External dependencies are isolated as independent subrepositories.
+The axioms are immutable foundational invariants.
 
-- The standard deterministic ingestion path accepts only `.lk` source files.
-- Purity guarantees are compiler-verified structurally, not socially assumed.
-- If a previously deterministic dependency introduces impure behavior during synchronization, ingestion aborts immediately with a hard structural error.
+However:
 
-This prevents silent contamination of deterministic dependency chains.
+> Additional axioms, semantic rules, or compiler guarantees may be introduced only if they are strictly derivable from the existing axiomatic system.
+
+
+
+This means:
+
+extensions may refine the model,
+
+but may never contradict foundational invariants.
+
+
+The system therefore evolves through:
+
+derivation,
+
+formalization,
+
+and structural consequence,
+
+
+not through arbitrary exception insertion.
+
 
 ---
 
-## A10 — Transitive Verification Mesh
+6. Scope-Oriented Execution Model
 
-Because deterministic modules possess stable and reproducible execution behavior, verification becomes highly compositional.
+Leek treats scopes as:
 
-- Local tests remain precise and inexpensive.
-- Validation propagates transitively through dependency relationships.
-- Downstream consumers continuously and implicitly revalidate imported deterministic logic through their own execution and testing processes.
+memory regions,
 
-As dependency chains expand, this forms a distributed verification mesh across the ecosystem.
+effect regions,
 
-When regressions, incompatibilities, or behavioral deviations emerge, the resulting breakage propagates visibly through dependent validation paths, rapidly surfacing structural inconsistencies across affected consumers.
+dependency regions,
+
+and optimization regions simultaneously.
+
+
+A scope is not merely syntactic grouping.
+
+It is:
+
+a lifetime boundary,
+
+a scheduling boundary,
+
+and a semantic isolation boundary.
+
+
 
 ---
 
-## A11 — Native Git Synchronization & Local Patch Ownership
+7. Determinism as Optimization Infrastructure
 
-Dependencies are not opaque locked artifacts.
+Determinism is not treated merely as a correctness feature.
 
-Developers may:
-- patch,
-- optimize,
-- fork,
-- or locally adapt imported packages at any time using standard Git workflows.
+It is treated as optimization infrastructure.
 
-Upstream synchronization occurs through native Git operations and conflict resolution mechanisms.
+If the compiler can prove:
 
-The toolchain tracks local modifications and deterministically reapplies maintained patches during future updates whenever structurally possible.
+no hidden mutation,
 
-This preserves long-term developer sovereignty over dependency behavior and integration.
+no alias ambiguity,
+
+and no uncontrolled side effects,
+
+
+then:
+
+aggressive inlining,
+
+vectorization,
+
+parallel execution,
+
+speculative scheduling,
+
+and memory layout optimization
+
+
+become mechanically derivable.
+
+
+---
+
+8. Rejection of Hidden Runtime Complexity
+
+Leek intentionally avoids:
+
+tracing garbage collection,
+
+hidden ownership mutation,
+
+implicit lifetime extension,
+
+and runtime borrow verification.
+
+
+Instead, the language attempts to encode:
+
+memory topology,
+
+execution order,
+
+and effect relationships
+
+
+directly into the program structure itself.
+
+
+---
+
+9. External Interaction Model
+
+The language does not reject:
+
+interrupts,
+
+hardware interaction,
+
+networking,
+
+DMA,
+
+or asynchronous input.
+
+
+Instead, these are isolated into explicit impure boundaries.
+
+The intended execution flow is:
+
+Impure Input
+    ↓
+Stabilized Snapshot
+    ↓
+Pure Deterministic Computation
+    ↓
+Impure Output
+
+Pure computation therefore operates exclusively on stabilized state snapshots.
+
+
+---
+
+10. Frontend Independence
+
+Leek syntax is not considered sacred.
+
+The frontend exists only as:
+
+a semantic expression layer,
+
+not as the semantic authority itself.
+
+
+Alternative frontends may exist provided they preserve:
+
+the axioms,
+
+the semantic guarantees,
+
+and the derived invariants.
+
+
+
+---
+
+11. Current Project State
+
+The project is currently in:
+
+exploratory prototype phase,
+
+semantic experimentation phase,
+
+and implementation feasibility validation.
+
+
+The current compiler:
+
+is intentionally incomplete,
+
+acts primarily as a proof-of-concept,
+
+and currently uses C as a temporary transport layer.
+
+
+The existing implementation should not be interpreted as the final architecture.
+
+
+---
+
+12. Final Position
+
+Leek is not attempting to become:
+
+a universal abstraction layer,
+
+a feature-maximal language,
+
+or a compatibility-first runtime ecosystem.
+
+
+Its purpose is instead to explore whether:
+
+deterministic structure,
+
+explicit lifetime topology,
+
+and mechanical semantic constraints
+
+
+can produce a language that is simultaneously:
+
+simple,
+
+analyzable,
+
+memory-safe,
+
+and highly optimizable.
+
+
+If those goals cannot be achieved under the axioms, then the project considers the experiment invalid rather than weakening the axiomatic foundation.
