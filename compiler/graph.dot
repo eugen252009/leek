@@ -1,0 +1,15 @@
+digraph LeekProgramGraph {
+    node [shape=box, style="filled,rounded", fontname="Courier", fontsize=11];
+    edge [fontname="Courier", fontsize=9];
+
+    "main:y:val:5" [label="main:y:val:5", fillcolor="#E1F5FE"];
+    "main" [label="main", fillcolor="#E1F5FE"];
+    "main:x" [label="main:x", fillcolor="#E1F5FE"];
+    "main:x:val:12" [label="main:x:val:12", fillcolor="#E1F5FE"];
+    "main:y" [label="main:y", fillcolor="#E1F5FE"];
+
+    "main" -> "main:x" [color="#1565C0", style="dashed", label="CONTROL"];
+    "main:x:val:12" -> "main:x" [color="#2E7D32", style="solid", arrowhead="normal", label="DATA/VALUE"];
+    "main" -> "main:y" [color="#1565C0", style="dashed", label="CONTROL"];
+    "main:y:val:5" -> "main:y" [color="#2E7D32", style="solid", arrowhead="normal", label="DATA/VALUE"];
+}

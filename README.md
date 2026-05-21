@@ -1,4 +1,4 @@
-# Mechanical C (mC)
+# Leek (lK)
 
 ## A Deterministic Scope-Based Programming Model for Visible Dataflow Execution
 
@@ -8,7 +8,7 @@
 
 # Abstract
 
-Modern software systems increasingly suffer from hidden execution paths, implicit memory behavior, opaque concurrency, and unpredictable runtime costs. Mechanical C (mC) proposes a fundamentally different approach:
+Modern software systems increasingly suffer from hidden execution paths, implicit memory behavior, opaque concurrency, and unpredictable runtime costs. Leek (lK) proposes a fundamentally different approach:
 
 * execution is scope-driven,
 * dataflow is explicit,
@@ -16,9 +16,9 @@ Modern software systems increasingly suffer from hidden execution paths, implici
 * parallelism emerges from structural independence,
 * abstractions never change mechanical behavior.
 
-mC treats programs not primarily as text, but as visible execution graphs composed of deterministic transformation scopes. The language is designed around a minimal set of mechanical rules that remain globally consistent across the entire system.
+Leek treats programs not primarily as text, but as visible execution graphs composed of deterministic transformation scopes. The language is designed around a minimal set of mechanical rules that remain globally consistent across the entire system.
 
-The primary goal of mC is not abstraction maximization, but structural clarity, predictable execution, analyzable parallelism, and compiler-assisted scheduling.
+The primary goal of Leek is not abstraction maximization, but structural clarity, predictable execution, analyzable parallelism, and compiler-assisted scheduling.
 
 ---
 
@@ -26,7 +26,7 @@ The primary goal of mC is not abstraction maximization, but structural clarity, 
 
 ## 1.1 Core Principle
 
-mC is based on a simple premise:
+Leek is based on a simple premise:
 
 > If the execution path is visible, the system becomes understandable.
 
@@ -36,7 +36,7 @@ Most modern programming languages optimize for:
 * abstraction density,
 * runtime dynamism.
 
-mC instead optimizes for:
+Leek instead optimizes for:
 
 * visible data movement,
 * explicit lifetime boundaries,
@@ -47,7 +47,7 @@ mC instead optimizes for:
 
 # 1.2 Mechanical Thinking
 
-mC models programs similarly to:
+Leek models programs similarly to:
 
 * production lines,
 * pipeline systems,
@@ -61,13 +61,13 @@ A program is composed of:
 * transformations,
 * resource boundaries.
 
-Not invisible runtime magic.
+Not invisible runtime magic. It is pragmatic, straightforward, and unyielding—just like its namesake.
 
 ---
 
 # 1.3 Simplicity Through Constraints
 
-mC intentionally restricts semantics to a small number of globally consistent rules.
+Leek intentionally restricts semantics to a small number of globally consistent rules.
 
 The language attempts to solve entire classes of problems structurally:
 
@@ -93,10 +93,12 @@ Every `{}` block defines:
 
 Objects created inside a scope are destroyed automatically when the scope ends.
 
-```mc
+```leek
 {
     let buffer = alloc(1024)
 } // buffer destroyed here
+```
+
 ```
 
 No garbage collector exists.
@@ -115,8 +117,10 @@ Data may only leave a scope through:
 
 Copies must always be visible in syntax.
 
-```mc
+```leek
 copy output <- local_buffer
+```
+
 ```
 
 Assignment is not ownership transfer.
@@ -129,8 +133,9 @@ The goal is to make memory movement visible to the developer.
 
 Functions are deterministic unless explicitly marked otherwise.
 
-```mc
+```leek
 fn process(data) -> result
+
 ```
 
 A pure function:
@@ -153,8 +158,9 @@ This allows:
 
 External uncertainty must be isolated explicitly.
 
-```mc
+```leek
 impure fn read_file(path) -> buffer
+
 ```
 
 Impure scopes include:
@@ -206,7 +212,7 @@ It does not directly spawn threads.
 
 # 3.1 Programs As Graphs
 
-mC internally represents programs as:
+Leek internally represents programs as:
 
 > Directed Acyclic Scope Graphs (DASG)
 
@@ -243,7 +249,7 @@ No hidden side effects are allowed in pure scopes.
 
 # 3.3 Structural Visibility
 
-mC attempts to make:
+Leek attempts to make:
 
 * memory movement,
 * synchronization,
@@ -322,11 +328,11 @@ Workers process:
 
 # 5.1 Region-Based Allocation
 
-Scopes allocate memory regions.
+Scopes allocate memory regions (Arenas).
 
 When the scope ends:
 
-* the entire region is released in bulk.
+* the entire region is released in bulk (or automatically zeroed out for the next reused scope).
 
 Advantages:
 
@@ -339,7 +345,7 @@ Advantages:
 
 # 5.2 Buffer Reuse
 
-mC encourages:
+Leek encourages:
 
 * passing buffers downward,
 * transforming in-place,
@@ -407,7 +413,7 @@ Parallelism changes execution strategy, not semantics.
 
 ---
 
-# 7. Algorithms In mC
+# 7. Algorithms In Leek
 
 Algorithms are not special language constructs.
 
@@ -434,7 +440,7 @@ Input State
 
 # 8. OOP And Abstractions
 
-mC does not forbid OOP.
+Leek does not forbid OOP.
 
 However:
 
@@ -453,7 +459,7 @@ Abstractions may improve readability, but never change mechanical behavior.
 
 # 9. Exportable Execution Graphs
 
-mC may expose:
+Leek may expose:
 
 * execution graphs,
 * dependency trees,
@@ -463,7 +469,7 @@ mC may expose:
 Example:
 
 ```bash
-mc build --export-path graph.pdf
+leek build --export-path graph.pdf
 ```
 
 This allows:
@@ -477,7 +483,7 @@ This allows:
 
 # 10. AI-Assisted Development
 
-mC is structurally compatible with AI-assisted decomposition.
+Leek is structurally compatible with AI-assisted decomposition.
 
 Because the system is graph-oriented:
 
@@ -497,26 +503,48 @@ Not as an unconstrained code author.
 
 # 11. Design Goals
 
-mC prioritizes:
+Leek prioritizes:
 
-| Goal                        | Priority  |
-| --------------------------- | --------- |
-| Visible execution           | High      |
-| Deterministic memory        | High      |
-| Structural parallelism      | High      |
-| Predictable performance     | High      |
-| Minimal semantic rules      | High      |
-| Hidden runtime behavior     | Forbidden |
+| Goal | Priority |
+| --- | --- |
+| Visible execution | High |
+| Deterministic memory | High |
+| Structural parallelism | High |
+| Predictable performance | High |
+| Minimal semantic rules | High |
+| Hidden runtime behavior | Forbidden |
 | Implicit ownership transfer | Forbidden |
 
 ---
 
 # 12. Final Principle
 
-Mechanical C is built around a single foundational idea:
+Leek is built around a single foundational idea:
 
 > Programs should behave like visible mechanical systems, not hidden magical processes.
 
 Or more simply:
 
 > Syntax may vary. Mechanics may not.
+
+---
+
+```leek
+// Global entry context behaves as implicit main scope
+let file:File = impure { 
+    filehandle, error = std.openFile("./test.txt") // Go-like error handling
+    error.isError({ 
+        panic("Could not open this file!")
+    })
+    return filehandle
+} // Scope exit: error state drops, filehandle is returned explicitly into parent scope
+
+let res:u32 = 0
+let line = file.lines() 
+for 0...line.len() {
+    res += 1 // res is captured and mutated from parent scope boundary
+}
+print(res)
+// Auto-teardown of remaining scope allocations
+
+```
