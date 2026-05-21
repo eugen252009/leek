@@ -1,0 +1,4 @@
+fn main() { 
+let x u32 = 12
+let y u8 = 5
+}

@@ -1,468 +1,553 @@
-Mechanical C (mC)
+# Leek (lK)
 
-> Visible execution. Deterministic memory. Structural parallelism.
+## A Deterministic Scope-Based Programming Model for Visible Dataflow Execution
 
-
-
-Mechanical C (mC) is an experimental systems programming language focused on:
-
-explicit dataflow,
-
-deterministic scope-based memory,
-
-visible execution paths,
-
-compiler-driven scheduling,
-
-structural simplicity.
-
-
-mC treats programs as deterministic transformation graphs instead of opaque runtime processes.
-
-The goal is not to hide complexity behind abstractions, but to make execution understandable, analyzable, and optimizable.
-
+### Draft Whitepaper — Revision 0.1
 
 ---
 
-Philosophy
+# Abstract
 
-Modern languages often hide:
+Modern software systems increasingly suffer from hidden execution paths, implicit memory behavior, opaque concurrency, and unpredictable runtime costs. Leek (lK) proposes a fundamentally different approach:
 
-ownership,
+* execution is scope-driven,
+* dataflow is explicit,
+* memory lifetime is deterministic,
+* parallelism emerges from structural independence,
+* abstractions never change mechanical behavior.
 
-memory movement,
+Leek treats programs not primarily as text, but as visible execution graphs composed of deterministic transformation scopes. The language is designed around a minimal set of mechanical rules that remain globally consistent across the entire system.
 
-synchronization,
-
-execution order,
-
-dependency chains.
-
-
-mC attempts to make those mechanics visible again.
-
-Programs are modeled similarly to:
-
-assembly lines,
-
-processing pipelines,
-
-scheduling graphs,
-
-deterministic state transitions.
-
-
-The language is intentionally built around a very small set of globally consistent rules.
-
+The primary goal of Leek is not abstraction maximization, but structural clarity, predictable execution, analyzable parallelism, and compiler-assisted scheduling.
 
 ---
 
-Core Principles
+# 1. Philosophy
 
-1. Scope Is Law
+## 1.1 Core Principle
 
-Every {} block defines:
+Leek is based on a simple premise:
 
-a lifetime boundary,
+> If the execution path is visible, the system becomes understandable.
 
-an ownership region,
+Most modern programming languages optimize for:
 
-an allocation scope.
+* syntactic flexibility,
+* abstraction density,
+* runtime dynamism.
 
+Leek instead optimizes for:
+
+* visible data movement,
+* explicit lifetime boundaries,
+* deterministic transformations,
+* structural analyzability.
+
+---
+
+# 1.2 Mechanical Thinking
+
+Leek models programs similarly to:
+
+* production lines,
+* pipeline systems,
+* scheduling graphs,
+* industrial process flows.
+
+A program is composed of:
+
+* stations,
+* transitions,
+* transformations,
+* resource boundaries.
+
+Not invisible runtime magic. It is pragmatic, straightforward, and unyielding—just like its namesake.
+
+---
+
+# 1.3 Simplicity Through Constraints
+
+Leek intentionally restricts semantics to a small number of globally consistent rules.
+
+The language attempts to solve entire classes of problems structurally:
+
+* use-after-free,
+* hidden allocations,
+* invisible ownership transfer,
+* accidental shared mutation,
+* implicit synchronization complexity.
+
+---
+
+# 2. Core Rules
+
+---
+
+# Rule 1 — Scope Is Law
+
+Every `{}` block defines:
+
+* a lifetime boundary,
+* an allocation region,
+* an ownership boundary.
 
 Objects created inside a scope are destroyed automatically when the scope ends.
 
+```leek
 {
     let buffer = alloc(1024)
 } // buffer destroyed here
 
-There is:
+```
 
-no garbage collector,
+No garbage collector exists.
 
-no hidden lifetime extension,
-
-no invisible ownership transfer.
-
-
+Memory release is deterministic and compiler-generated.
 
 ---
 
-2. Data Cannot Escape Implicitly
+# Rule 2 — Data Cannot Escape Implicitly
 
 Data may only leave a scope through:
 
-explicit copy,
+* explicit `copy`,
+* explicit reference passing,
+* deterministic `return`.
 
-explicit references,
+Copies must always be visible in syntax.
 
-deterministic return.
-
-
-Copies must always be visible.
-
+```leek
 copy output <- local_buffer
 
-The goal is to make memory movement mechanically understandable.
+```
 
+Assignment is not ownership transfer.
+
+The goal is to make memory movement visible to the developer.
 
 ---
 
-3. Pure By Default
+# Rule 3 — Pure By Default
 
 Functions are deterministic unless explicitly marked otherwise.
 
-fn parse(data) -> result
+```leek
+fn process(data) -> result
 
-Pure functions:
+```
 
-cannot perform IO,
+A pure function:
 
-cannot access hidden global state,
+* cannot perform IO,
+* cannot access hidden global state,
+* cannot use time/network/randomness,
+* cannot mutate external state.
 
-cannot use timers/network/randomness,
+This allows:
 
-cannot mutate external state.
-
-
-This enables:
-
-deterministic execution,
-
-aggressive compiler optimization,
-
-automatic dependency analysis,
-
-structural parallelization.
-
-
+* deterministic analysis,
+* safe scheduling,
+* automatic parallelization,
+* aggressive compiler optimization.
 
 ---
 
-4. Impure Is Explicit
+# Rule 4 — Impure Isolated Boundaries
 
 External uncertainty must be isolated explicitly.
 
-impure fn read_file(path) -> Buffer
+```leek
+impure fn read_file(path) -> buffer
 
-Impure functions include:
+```
 
-file IO,
+Impure scopes include:
 
-networking,
+* file IO,
+* networking,
+* timers,
+* raw pointers,
+* OS interaction.
 
-OS interaction,
+Impure boundaries act as:
 
-timers,
+* quarantine zones,
+* scheduling barriers,
+* external dependency markers.
 
-unsafe/raw memory access.
-
-
-Impure boundaries are visible execution boundaries.
-
+Errors originating inside impure scopes must be resolved or propagated explicitly.
 
 ---
 
-5. Parallelism Emerges From Structure
+# Rule 5 — Structure Defines Parallelism
 
-mC does not treat parallelism as manual thread orchestration.
+Parallelism is not created through thread commands.
 
 Instead:
 
-pure scopes,
+> independent scopes are naturally parallelizable.
 
-independent dependencies,
+The compiler analyzes:
 
-isolated state,
+* dependencies,
+* mutations,
+* ownership,
+* scope isolation.
 
+A `parallel` annotation acts only as:
 
-become naturally parallelizable.
+* a structural contract,
+* a linter verification zone,
+* a parallelizability guarantee request.
 
-The compiler analyzes the execution graph and schedules work automatically.
-
-Optional parallel annotations are treated as:
-
-validation contracts,
-
-linter verification zones,
-
-structural hints.
-
-
-They do not directly spawn threads.
-
+It does not directly spawn threads.
 
 ---
 
-The Scope Graph Model
+# 3. The Scope Graph Model
 
-Internally, mC programs are represented as:
+---
+
+# 3.1 Programs As Graphs
+
+Leek internally represents programs as:
 
 > Directed Acyclic Scope Graphs (DASG)
 
+Nodes:
 
+* scopes,
+* transformations,
+* reductions,
+* impure boundaries.
 
-Each scope represents:
+Edges:
 
+* data dependencies,
+* ownership transitions,
+* state outputs.
+
+---
+
+# 3.2 State Transition Model
+
+Every scope represents:
+
+```text
 Input State
  → Transformation
  → Output State
 
-The compiler tracks:
+```
 
-ownership,
+A scope may only influence its explicit output.
 
-dependencies,
-
-purity,
-
-memory regions,
-
-scheduling opportunities.
-
-
+No hidden side effects are allowed in pure scopes.
 
 ---
 
-Compiler Design Goals
+# 3.3 Structural Visibility
 
-The compiler is responsible for the complexity — not the language.
+Leek attempts to make:
 
-mC aims to keep syntax and mental models simple while allowing the compiler to:
+* memory movement,
+* synchronization,
+* parallelism,
+* execution order,
+* resource ownership
 
-fuse scopes,
-
-inline transformations,
-
-reuse buffers,
-
-schedule independent work,
-
-optimize cache locality,
-
-compute critical paths,
-
-parallelize pure subgraphs.
-
-
+visible in the graph itself.
 
 ---
 
-Memory Model
-
-mC uses deterministic scope-based lifetime management.
-
-Typical allocation model:
-
-Scope Start  → Allocate Region
-Scope End    → Release Region
-
-This enables:
-
-predictable memory behavior,
-
-low fragmentation,
-
-cheap cleanup,
-
-strong cache locality.
-
-
-The language encourages:
-
-buffer reuse,
-
-in-place transformation,
-
-region-oriented thinking.
-
-
+# 4. Compiler Architecture
 
 ---
 
-Scheduling Model
+# 4.1 Frontend
 
-The compiler transforms programs into execution graphs.
+The compiler extracts:
 
-Independent pure scopes may execute:
+* scopes,
+* ownership boundaries,
+* purity information,
+* data dependencies.
 
-concurrently,
+Result:
 
-out-of-order,
+* Scope Graph IR.
 
-fused into larger execution units.
+---
 
+# 4.2 Dependency Analysis
 
-This is conceptually similar to:
+The compiler computes:
 
-CPU out-of-order execution,
+* critical paths,
+* independent subgraphs,
+* synchronization points,
+* lifetime regions,
+* allocation reuse opportunities.
 
-job scheduling,
+---
 
-pipeline processing,
+# 4.3 Scheduling
 
-ECS systems,
+The compiler transforms the graph into executable scheduling units.
 
-industrial flow systems.
+Pure independent scopes may execute concurrently.
 
+Small scopes may be:
+
+* fused,
+* inlined,
+* batched.
+
+---
+
+# 4.4 Runtime Model
 
 The runtime acts as:
 
-a DAG executor,
+* DAG executor,
+* worker scheduler,
+* region allocator.
 
-a worker scheduler,
+Workers process:
 
-a dependency resolver.
-
-
-
----
-
-Visibility Over Magic
-
-One of the primary goals of mC is:
-
-> The execution path should never become invisible.
-
-
-
-Possible future tooling:
-
-live dependency visualization,
-
-execution graph export,
-
-critical path analysis,
-
-inline flow tracing,
-
-purity visualization,
-
-buffer lifetime overlays.
-
-
-Example:
-
-impure read_file
-        ↓
-pure parse_json
-        ↓
-pure extract_ids
-        ↓
-pure aggregate
-
+* isolated transformation scopes,
+* ready dependency nodes,
+* deterministic execution batches.
 
 ---
 
-Structural Tooling Vision
-
-The compiler/linter may eventually provide:
-
-dependency overlays,
-
-flow tracing,
-
-parallelization hints,
-
-allocation warnings,
-
-scope visualizations.
-
-
-Example:
-
-depends on:
-  parse_json()
-    depends on:
-      read_file()
-
-The goal is to make:
-
-dataflow,
-
-ownership,
-
-dependencies,
-
-purity,
-
-execution structure
-
-
-visible directly inside development tools.
-
+# 5. Memory Model
 
 ---
 
-OOP Philosophy
+# 5.1 Region-Based Allocation
 
-mC does not reject OOP.
+Scopes allocate memory regions (Arenas).
+
+When the scope ends:
+
+* the entire region is released in bulk (or automatically zeroed out for the next reused scope).
+
+Advantages:
+
+* low fragmentation,
+* predictable deallocation,
+* cache-friendly locality,
+* reduced allocator overhead.
+
+---
+
+# 5.2 Buffer Reuse
+
+Leek encourages:
+
+* passing buffers downward,
+* transforming in-place,
+* avoiding repeated allocations.
+
+The compiler and linter may warn about:
+
+* repeated allocation inside loops,
+* unnecessary copies,
+* avoidable heap churn.
+
+---
+
+# 6. Parallelism Model
+
+---
+
+# 6.1 Parallelism As Emergent Property
+
+Parallelism is discovered, not manually orchestrated.
+
+If two scopes:
+
+* share no mutable state,
+* have no dependency edge,
+* are pure,
+
+they may execute concurrently.
+
+---
+
+# 6.2 Two Forms Of Parallelism
+
+## Pipeline Parallelism
+
+```text
+A → B → C
+
+```
+
+Different workers process different stages simultaneously.
+
+---
+
+## Data Parallelism
+
+```text
+process(chunk1)
+process(chunk2)
+process(chunk3)
+
+```
+
+Identical transformations operate on independent datasets.
+
+---
+
+# 6.3 Deterministic Scheduling
+
+The meaning of a program never depends on:
+
+* thread count,
+* scheduling order,
+* runtime timing.
+
+Parallelism changes execution strategy, not semantics.
+
+---
+
+# 7. Algorithms In Leek
+
+Algorithms are not special language constructs.
+
+An algorithm is simply:
+
+* a deterministic transformation scope.
+
+Examples:
+
+* sorting,
+* graph traversal,
+* parsing,
+* simulation.
+
+All follow the same rule:
+
+```text
+Input State
+ → Pure Transformation
+ → Output State
+
+```
+
+---
+
+# 8. OOP And Abstractions
+
+Leek does not forbid OOP.
 
 However:
 
-classes remain scope-bound,
-
-ownership rules still apply,
-
-abstraction cannot bypass mechanical constraints.
-
+* objects remain scope-bound,
+* classes cannot bypass ownership rules,
+* abstraction cannot alter mechanical semantics.
 
 OOP becomes:
 
-organizational syntax,
+* organizational syntax,
+* not runtime reality.
 
-not hidden runtime behavior.
-
-
-
----
-
-Design Goals
-
-Goal	Priority
-
-Visible execution	High
-Deterministic memory	High
-Structural simplicity	High
-Predictable performance	High
-Automatic scheduling	High
-Hidden runtime behavior	Forbidden
-Implicit ownership transfer	Forbidden
-Invisible synchronization	Forbidden
-
-
+Abstractions may improve readability, but never change mechanical behavior.
 
 ---
 
-Long-Term Vision
+# 9. Exportable Execution Graphs
 
-mC explores the idea that programs can be:
+Leek may expose:
 
-mechanically understandable,
+* execution graphs,
+* dependency trees,
+* critical paths,
+* scheduling plans.
 
-structurally analyzable,
+Example:
 
-naturally parallelizable,
+```bash
+leek build --export-path graph.pdf
 
-visually explainable.
+```
 
+This allows:
 
-The language is intentionally experimental and currently focused on:
-
-core semantics,
-
-compiler architecture,
-
-execution modeling,
-
-dependency visibility,
-
-deterministic scheduling.
-
-
+* debugging,
+* optimization,
+* educational visualization,
+* AI-assisted graph refinement.
 
 ---
 
-Final Principle
+# 10. AI-Assisted Development
 
-> Syntax may evolve. Mechanics must remain visible.
+Leek is structurally compatible with AI-assisted decomposition.
+
+Because the system is graph-oriented:
+
+* problems can be refined incrementally,
+* scopes can be generated hierarchically,
+* transformations can be synthesized locally.
+
+AI acts as:
+
+* graph refinement engine,
+* structural decomposer,
+* deterministic transformation generator.
+
+Not as an unconstrained code author.
+
+---
+
+# 11. Design Goals
+
+Leek prioritizes:
+
+| Goal | Priority |
+| --- | --- |
+| Visible execution | High |
+| Deterministic memory | High |
+| Structural parallelism | High |
+| Predictable performance | High |
+| Minimal semantic rules | High |
+| Hidden runtime behavior | Forbidden |
+| Implicit ownership transfer | Forbidden |
+
+---
+
+# 12. Final Principle
+
+Leek is built around a single foundational idea:
+
+> Programs should behave like visible mechanical systems, not hidden magical processes.
+
+Or more simply:
+
+> Syntax may vary. Mechanics may not.
+
+---
+
+```leek
+// Global entry context behaves as implicit main scope
+let file:File = impure { 
+    filehandle, error = std.openFile("./test.txt") // Go-like error handling
+    error.isError({ 
+        panic("Could not open this file!")
+    })
+    return filehandle
+} // Scope exit: error state drops, filehandle is returned explicitly into parent scope
+
+let res:u32 = 0
+let line = file.lines() 
+for 0...line.len() {
+    res += 1 // res is captured and mutated from parent scope boundary
+}
+print(res)
+// Auto-teardown of remaining scope allocations
+
+```
