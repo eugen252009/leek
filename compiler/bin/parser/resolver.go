@@ -2,12 +2,13 @@ package parser
 
 import (
 	"fmt"
+	"strconv"
 )
 
 type Symbol struct {
 	Name    string
 	Type    string
-	NodeRef *GraphNode 
+	NodeRef *GraphNode
 }
 
 type Environment struct {
@@ -64,7 +65,7 @@ func (r *Resolver) resolveStatement(stmt Statement) error {
 	switch s := stmt.(type) {
 	case *FunctionStatement:
 		return r.resolveFunction(s)
-	case *LetStatement: 
+	case *LetStatement:
 		return r.resolveLet(s)
 	default:
 		return fmt.Errorf("unknown statement type")
@@ -112,6 +113,9 @@ func (r *Resolver) useSymbol(name string, consumer *GraphNode) error {
 }
 
 func (r *Resolver) resolveFunction(fs *FunctionStatement) error {
+	if _, exists := r.Graph.Nodes[fs.Name]; exists {
+		return sourceError(fs.Pos, "duplicate function %q", fs.Name)
+	}
 	nodeType := PureScope
 	if fs.IsImpure {
 		nodeType = ImpureScope
@@ -159,6 +163,15 @@ func (r *Resolver) resolveFunction(fs *FunctionStatement) error {
 	return nil
 }
 func (r *Resolver) resolveLet(ls *LetStatement) error {
+	if r.CurrentScope == nil {
+		return sourceError(ls.Pos, "declaration %q must be inside a function", ls.Name)
+	}
+	if _, exists := r.CurrentEnv.Symbols[ls.Name]; exists {
+		return sourceError(ls.Pos, "duplicate declaration %q", ls.Name)
+	}
+	if !validType(ls.Type) {
+		return sourceError(ls.Pos, "unknown type %q", ls.Type)
+	}
 	letNodeID := r.CurrentScope.ID + ":" + ls.Name
 	letNode := &GraphNode{
 		ID:         letNodeID,
@@ -171,12 +184,18 @@ func (r *Resolver) resolveLet(ls *LetStatement) error {
 
 	r.addEdge(r.CurrentScope, letNode, ControlEdge)
 
+	if _, err := strconv.ParseInt(ls.Value, 10, 64); err != nil {
+		if err := r.useSymbol(ls.Value, letNode); err != nil {
+			return sourceError(ls.Pos, "%s", err.Error())
+		}
+	}
+
 	valueNodeID := letNodeID + ":val:" + ls.Value
 	valueNode := &GraphNode{
 		ID:         valueNodeID,
 		Type:       PureScope,
 		Children:   []*GraphNode{},
-		SourceNode: ls, 
+		SourceNode: ls,
 	}
 	r.Graph.Nodes[valueNodeID] = valueNode
 	r.CurrentScope.Children = append(r.CurrentScope.Children, valueNode)
@@ -186,6 +205,19 @@ func (r *Resolver) resolveLet(ls *LetStatement) error {
 	r.bindSymbol(ls.Name, letNode)
 
 	return nil
+}
+
+func validType(name string) bool {
+	switch name {
+	case "u8", "u16", "u32", "u64", "i8", "i16", "i32", "i64", "f32", "f64", "bool":
+		return true
+	default:
+		return false
+	}
+}
+
+func sourceError(pos SourcePos, format string, args ...interface{}) error {
+	return fmt.Errorf("%s:%d:%d: semantic error: %s", pos.Filename, pos.Line, pos.Column, fmt.Sprintf(format, args...))
 }
 
 func validateNoCycles(g *ProgramGraph) error {

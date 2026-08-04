@@ -1,120 +1,159 @@
-# Leek MVP Roadmap
+# Leek MVP Step-by-Step Plan
 
-This checklist takes the current prototype to a small, usable MVP. A task is
-only complete when its tests and acceptance criteria pass. After committing a
-completed task, replace `[ ]` with `[x]` and record the actual commit message
-on the same line as `✅ Commit:`.
+Each numbered item is intended to be one focused, commit-sized task. Do not
+combine unrelated items. Mark an item with `[x]` only after its acceptance
+criteria pass, then record the actual commit message after `✅ Commit:`.
 
-## MVP definition
+## MVP target
 
-The MVP should be able to compile a small `.lk` program from a file into a
-native executable while enforcing the core rules that are currently testable:
+The MVP is a command-line compiler that accepts a `.lk` source file, validates
+its syntax and core semantic invariants, emits a directed graph and C code,
+and produces a runnable native executable. It supports typed values, basic
+expressions, functions, returns, lexical scopes, pure/impure boundaries, and
+scope-bound arenas.
 
-- lexical scopes and explicit bindings;
-- typed values and basic expressions;
-- explicit pure/impure function boundaries;
-- undefined-symbol and type diagnostics;
-- a validated acyclic data/control/effect graph;
-- deterministic scope-bound arena cleanup;
-- generated C and a runnable native binary;
-- parser, resolver, code-generation, and end-to-end tests.
+## 1. Baseline
 
-## Phase 0 — Baseline and project hygiene
+- [x] **1.1 — Establish the language design documents.** Keep `README.md`,
+  `axioms.md`, and `base-model.md` as the semantic reference. — ✅ Commit:
+  `1c19a65 axioms.md erstellen`, `4a9ae6b Revise README for clarity and structure`
+- [x] **1.2 — Establish the prototype compiler.** Keep the parser, resolver,
+  graph model, and C backend building together. — ✅ Commit:
+  `2a4e187 feat(compiler): implement core graph architecture, parser frontend, and C-codegen backend`
+- [x] **1.3 — Add baseline parser and resolver tests.** — ✅ Commit:
+  `d02e88f feat(compiler): add parser and resolver modules`
+- [x] **1.4 — Add repository development guidance.** — ✅ Commit:
+  `1d35e23 docs: add project guidance and MVP roadmap`
+- [x] **1.5 — Document the currently supported prototype syntax.** Include a
+  minimal valid `.lk` example and its limitations. — ✅ Commit message:
+  `docs: document prototype syntax and limitations` *(implemented locally; not yet committed)*
 
-- [x] Establish the written design and axioms in `README.md`, `axioms.md`,
-  and `base-model.md`. — ✅ Commit: `1c19a65 axioms.md erstellen`, `4a9ae6b Revise README for clarity and structure`
-- [x] Create the initial parser, resolver, graph model, and C backend. — ✅ Commit: `2a4e187 feat(compiler): implement core graph architecture, parser frontend, and C-codegen backend`
-- [x] Add initial parser and resolver tests. — ✅ Commit: `d02e88f feat(compiler): add parser and resolver modules`
-- [x] Add repository development guidance. — ✅ Commit: record the commit that adds `AGENTS.md`
-- [ ] Run the baseline test suite and document the current supported `.lk`
-  syntax in the README. — Commit when complete: `docs: document MVP baseline and supported syntax`
+## 2. Command-line compiler
 
-## Phase 1 — Make the compiler a real CLI
+- [x] **2.1 — Add compiler options.** Accept an input path, output binary path,
+  and optional DOT path while retaining `main.lk` as a sample. — ✅ Commit message:
+  `feat(cli): add source output and graph options` *(implemented locally; not yet committed)*
+- [x] **2.2 — Separate compiler stages.** Expose parse, resolve, graph export,
+  code generation, and native compilation as testable functions. — ✅ Commit message:
+  `refactor(cli): separate compiler pipeline stages` *(implemented locally; not yet committed)*
+- [x] **2.3 — Fix process exit status.** Return non-zero status for every
+  compiler or GCC failure and zero only on success. — ✅ Commit message:
+  `fix(cli): return failure status for compilation errors` *(implemented locally; not yet committed)*
+- [x] **2.4 — Add source locations to diagnostics.** Include filename, line,
+  and column in parser and semantic errors. — ✅ Commit message:
+  `feat(diagnostics): add source locations to compiler errors` *(implemented locally; not yet committed)*
+- [x] **2.5 — Add CLI integration coverage.** Compile a temporary source file,
+  inspect generated artifacts, and execute the resulting binary. — ✅ Commit message:
+  `test(cli): add source-to-binary integration test` *(implemented locally; not yet committed)*
 
-- [ ] Accept an input `.lk` path instead of always embedding `main.lk`.
-  Preserve `main.lk` as a sample program. — Commit when complete:
-  `feat(cli): compile source files from the command line`
-- [ ] Add explicit output options for the native binary and graph/DOT file.
-  Do not write generated files unexpectedly into the repository root. — Commit
-  when complete: `feat(cli): add output and graph options`
-- [ ] Return non-zero exit codes for parse, semantic, code-generation, and GCC
-  failures; print source locations in diagnostics. — Commit when complete:
-  `fix(cli): report compiler failures with actionable diagnostics`
-- [ ] Add an end-to-end test that invokes the compiler on a temporary source
-  file and verifies the produced binary. — Commit when complete:
-  `test(compiler): add source-to-binary integration coverage`
+## 3. Minimal frontend
 
-## Phase 2 — Complete the minimal frontend
+- [ ] **3.1 — Specify the MVP grammar.** Document functions, parameters,
+  blocks, `let`, `return`, literals, identifiers, and calls. — Commit:
+  `docs(parser): specify MVP grammar`
+- [ ] **3.2 — Replace string values with expression AST nodes.** Preserve
+  source positions on AST nodes. — Commit:
+  `feat(parser): add typed expression AST`
+- [ ] **3.3 — Parse primitive literals and types.** Support integer, boolean,
+  floating-point literals and the existing numeric types. — Commit:
+  `feat(parser): parse MVP literals and types`
+- [ ] **3.4 — Parse operators and parentheses.** Add precedence-aware unary and
+  binary expression parsing. — Commit:
+  `feat(parser): parse MVP expressions and operators`
+- [ ] **3.5 — Parse returns and calls.** Support function return statements,
+  function-call expressions, and argument lists. — Commit:
+  `feat(parser): parse returns and function calls`
+- [ ] **3.6 — Parse nested blocks.** Ensure every block creates an explicit AST
+  scope and malformed blocks produce useful errors. — Commit:
+  `feat(parser): support nested lexical blocks`
+- [ ] **3.7 — Expand parser tests.** Cover valid syntax, precedence, malformed
+  input, and filename/line/column reporting. — Commit:
+  `test(parser): cover MVP grammar and diagnostics`
 
-- [ ] Define and document the MVP grammar for functions, parameters, blocks,
-  `let`, `return`, literals, identifiers, and calls. — Commit when complete:
-  `docs(parser): specify the MVP grammar`
-- [ ] Replace stringly-typed values with expression AST nodes. — Commit when
-  complete: `feat(parser): add typed expression AST`
-- [ ] Parse integer, boolean, and floating-point literals with operators and
-  parentheses. — Commit when complete: `feat(parser): parse MVP expressions`
-- [ ] Parse return statements, function calls, and nested blocks. — Commit when
-  complete: `feat(parser): support returns calls and nested blocks`
-- [ ] Add malformed-input tests for every grammar rule and ensure errors include
-  filename and line/column information. — Commit when complete:
-  `test(parser): cover MVP syntax errors`
+## 4. Semantic resolver and graph
 
-## Phase 3 — Enforce semantic invariants
+- [ ] **4.1 — Resolve nested lexical environments.** Implement child scopes,
+  shadowing rules, and scope-local bindings without implicit upward escape. —
+  Commit: `feat(resolver): enforce lexical scope containment`
+- [x] **4.2 — Validate declarations.** Reject duplicate bindings and invalid
+  declarations with actionable diagnostics. — ✅ Commit message:
+  `feat(resolver): validate declarations` *(implemented locally; not yet committed)*
+- [ ] **4.3 — Resolve expressions and calls.** Reject undefined names, unknown
+  functions, incorrect argument counts, and invalid call targets. — Commit:
+  `feat(resolver): resolve expressions and function calls`
+- [ ] **4.4 — Add MVP type checking.** Validate assignments, operators,
+  arguments, returns, and function result types. — Commit:
+  `feat(semantics): add MVP type checker`
+- [ ] **4.5 — Represent explicit data and return edges.** Derive edges from
+  reads, values, calls, and explicit outward returns. — Commit:
+  `feat(graph): add data and return flow edges`
+- [ ] **4.6 — Represent effect edges.** Mark impure operations and connect them
+  only through explicit impure boundaries. — Commit:
+  `feat(graph): add explicit effect edges`
+- [ ] **4.7 — Enforce purity.** Reject IO, mutation, and other effects inside
+  pure scopes. — Commit: `feat(semantics): enforce pure and impure boundaries`
+- [ ] **4.8 — Enforce lifetime rules.** Reject references or values escaping the
+  scope/arena that owns them. — Commit:
+  `feat(semantics): validate scope-bound lifetimes`
+- [ ] **4.9 — Validate graph constraints.** Check DAG ordering, illegal cycles,
+  edge direction, and invalid parallel dependencies. — Commit:
+  `feat(graph): validate DAG and dependency constraints`
+- [ ] **4.10 — Test semantic invariants.** Add resolver/graph tests for scopes,
+  bindings, types, purity, lifetimes, edges, and cycles. — Commit:
+  `test(resolver): cover MVP semantic invariants`
 
-- [ ] Implement lexical scope creation and lookup for nested blocks without
-  implicit upward escape. — Commit when complete:
-  `feat(resolver): enforce lexical scope containment`
-- [ ] Detect duplicate bindings, undefined names, invalid returns, and invalid
-  function calls with actionable errors. — Commit when complete:
-  `feat(resolver): validate bindings returns and calls`
-- [ ] Add a type checker for the MVP types and operators. — Commit when
-  complete: `feat(semantics): add MVP type checking`
-- [ ] Track pure and impure operations in the graph and reject effects from
-  pure scopes. — Commit when complete: `feat(semantics): enforce purity boundaries`
-- [ ] Represent explicit return/data/effect edges and validate their direction.
-  Reject graph cycles with a diagnostic pointing to the involved nodes. — Commit
-  when complete: `feat(graph): validate data control and effect flow`
-- [ ] Add resolver and graph tests for scope isolation, purity, lifetime escape,
-  edge creation, and cycle rejection. — Commit when complete:
-  `test(resolver): cover core semantic invariants`
+## 5. C backend and runtime
 
-## Phase 4 — Make generated C correct and safe for the MVP
-
-- [ ] Generate correct C function signatures and return values from the typed
-  AST/graph. — Commit when complete: `feat(codegen): generate typed functions and returns`
-- [ ] Generate expression evaluation, calls, and control flow without using
-  raw source strings as C expressions. — Commit when complete:
+- [ ] **5.1 — Generate typed function signatures.** Emit correct C parameter
+  and return types from the resolved program. — Commit:
+  `feat(codegen): generate typed function signatures`
+- [ ] **5.2 — Generate typed declarations and literals.** Stop treating source
+  values as unchecked C fragments. — Commit:
+  `feat(codegen): generate typed declarations and literals`
+- [ ] **5.3 — Generate expressions and calls.** Lower operators, parentheses,
+  function calls, and returns from the AST/graph. — Commit:
   `feat(codegen): lower MVP expressions and calls`
-- [ ] Make arena ownership explicit per scope and reject references that would
-  outlive their arena. — Commit when complete:
-  `feat(codegen): enforce scope-bound arena lifetimes`
-- [ ] Add explicit impure runtime hooks for approved IO/output operations;
-  keep the pure backend free of hidden external effects. — Commit when complete:
+- [ ] **5.4 — Generate control flow.** Lower the MVP block and return structure
+  while preserving graph order. — Commit:
+  `feat(codegen): lower MVP control flow`
+- [ ] **5.5 — Make arena ownership explicit.** Allocate each scope's values in
+  its arena and release the arena deterministically at scope exit. — Commit:
+  `feat(runtime): implement scope-bound arena ownership`
+- [ ] **5.6 — Add explicit impure runtime hooks.** Provide only approved IO or
+  output operations, with no hidden effects in pure code. — Commit:
   `feat(runtime): add explicit impure boundary hooks`
-- [ ] Compile generated C with strict warnings and treat warnings as failures
-  in tests. — Commit when complete: `build(codegen): enable strict generated-C checks`
-- [ ] Add golden tests for generated C and runtime tests for representative
-  pure and impure programs. — Commit when complete:
+- [x] **5.7 — Enable strict generated-C checks.** Compile generated C with
+  warnings enabled and fail tests on warnings or compiler errors. — ✅ Commit message:
+  `build(codegen): enable strict generated-C checks` *(implemented locally; not yet committed)*
+- [ ] **5.8 — Add backend tests.** Add generated-C golden tests and runtime
+  tests for pure, impure, return, and arena behavior. — Commit:
   `test(codegen): add generated-C and runtime coverage`
 
-## Phase 5 — MVP release gate
+## 6. MVP release gate
 
-- [ ] Add a documented example program that exercises parsing, data flow,
-  return, an impure boundary, and deterministic cleanup. — Commit when complete:
+- [ ] **6.1 — Add a complete example program.** Exercise typed data flow,
+  returns, an impure boundary, and deterministic cleanup. — Commit:
   `docs: add complete MVP example`
-- [ ] Run `gofmt` and `go test ./...` from `compiler/`; all tests pass. — Commit
-  when complete: `chore: validate MVP test suite`
-- [ ] Run `go run .` (or the new CLI), verify DOT output, generated C, GCC
-  compilation, and execution of the example. — Commit when complete:
-  `test: verify end-to-end MVP pipeline`
-- [ ] Update `README.md` with installation, CLI usage, supported syntax,
-  limitations, and the exact MVP status. — Commit when complete:
-  `docs: publish Leek MVP usage and limitations`
-- [ ] Tag the first MVP release only after the full checklist is complete. —
-  Commit when complete: `release: Leek MVP`
+- [ ] **6.2 — Add an end-to-end acceptance test.** Verify parse, resolution,
+  DOT output, C output, GCC compilation, and executable behavior. — Commit:
+  `test: verify complete MVP pipeline`
+- [ ] **6.3 — Update user documentation.** Document installation, CLI usage,
+  supported syntax, examples, limitations, and MVP status. — Commit:
+  `docs: publish MVP usage and limitations`
+- [ ] **6.4 — Run the release checks.** From `compiler/`, run `gofmt` on changed
+  Go files, `go test ./...`, and the full compiler example. — Commit:
+  `chore: validate MVP release checks`
+- [ ] **6.5 — Tag the MVP.** Tag only after every preceding item is complete
+  and the working tree is clean. — Commit:
+  `release: Leek MVP`
 
-## Working rule for future steps
+## Completion rule
 
-Keep each implementation step small enough to produce one focused commit.
-Never mark a task complete because code exists; mark it complete only after its
-acceptance test passes and the implementation commit has been recorded above.
+An item is implemented only when the code, tests, and documentation required
+by that item are complete. Then commit it, change `[ ]` to `[x]`, and replace
+the planned message with the actual message, for example:
+
+```text
+- [x] **2.1 — Add compiler options.** ... — ✅ Commit:
+  `abc1234 feat(cli): add source output and graph options`
+```

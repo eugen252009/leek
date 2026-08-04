@@ -1,8 +1,9 @@
 package main
 
 import (
-	_ "embed"
+	"flag"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -11,86 +12,101 @@ import (
 	"leek/bin/parser"
 )
 
-//go:embed main.lk
-var input string
+type options struct {
+	input  string
+	output string
+	graph  string
+}
 
-func compileToBinary(cCode string, outputBinary string) error {
-	tmpCFile := outputBinary + "_tmp.c"
-	err := os.WriteFile(tmpCFile, []byte(cCode), 0644)
-	if err != nil {
-		return fmt.Errorf("error writing temporary C file: %w", err)
+func main() {
+	os.Exit(run(os.Args[1:], os.Stdout, os.Stderr))
+}
+
+func run(args []string, stdout, stderr io.Writer) int {
+	fs := flag.NewFlagSet("leek", flag.ContinueOnError)
+	fs.SetOutput(stderr)
+	output := fs.String("o", "app", "output executable path")
+	graph := fs.String("graph", "graph.dot", "output DOT graph path")
+	if err := fs.Parse(args); err != nil {
+		return 2
 	}
-	defer os.Remove(tmpCFile)
 
-	outputPath, err := filepath.Abs(outputBinary)
+	input := "main.lk"
+	if fs.NArg() > 1 {
+		fmt.Fprintln(stderr, "leek: expected at most one input .lk path")
+		return 2
+	}
+	if fs.NArg() == 1 {
+		input = fs.Arg(0)
+	}
+	if filepath.Ext(input) != ".lk" {
+		fmt.Fprintf(stderr, "leek: input %q is not a .lk file\n", input)
+		return 2
+	}
+
+	if err := compile(options{input: input, output: *output, graph: *graph}, stdout, stderr); err != nil {
+		fmt.Fprintf(stderr, "leek: %v\n", err)
+		return 1
+	}
+	return 0
+}
+
+func compile(opts options, stdout, stderr io.Writer) error {
+	source, err := os.ReadFile(opts.input)
+	if err != nil {
+		return fmt.Errorf("cannot read %s: %w", opts.input, err)
+	}
+
+	program, err := parser.NewParser(strings.NewReader(string(source)), opts.input).ParseProgram()
+	if err != nil {
+		return err
+	}
+	res := parser.NewResolver()
+	graph, err := res.Resolve(program)
 	if err != nil {
 		return err
 	}
 
-	cmd := exec.Command("gcc", "-O3", "-march=native", tmpCFile, "-o", outputPath)
-
-	cmd.Stderr = os.Stderr
-	cmd.Stdout = os.Stdout
-
-	err = cmd.Run()
-	if err != nil {
-		return fmt.Errorf("GCC compilation failed: %w", err)
+	dot := graph.ToDOT()
+	if err := writeArtifact(opts.graph, []byte(dot)); err != nil {
+		return fmt.Errorf("write graph: %w", err)
 	}
 
+	cCode, err := parser.NewCodeGenerator().Generate(graph)
+	if err != nil {
+		return fmt.Errorf("code generation: %w", err)
+	}
+	if err := compileToBinary(cCode, opts.output, stderr); err != nil {
+		return err
+	}
+	fmt.Fprintf(stdout, "compiled %s -> %s\n", opts.input, opts.output)
 	return nil
 }
 
-func main() {
-	srcReader := strings.NewReader(input)
-	p := parser.NewParser(srcReader, "main.lk")
+func writeArtifact(path string, data []byte) error {
+	if dir := filepath.Dir(path); dir != "." {
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			return err
+		}
+	}
+	return os.WriteFile(path, data, 0644)
+}
 
-	programAST, err := p.ParseProgram()
+func compileToBinary(cCode, outputBinary string, stderr io.Writer) error {
+	if err := writeArtifact(outputBinary+"_tmp.c", []byte(cCode)); err != nil {
+		return fmt.Errorf("write temporary C file: %w", err)
+	}
+	tmpCFile := outputBinary + "_tmp.c"
+	defer os.Remove(tmpCFile)
+
+	outputPath, err := filepath.Abs(outputBinary)
 	if err != nil {
-		fmt.Printf("❌ Syntax Error: %s\n", err)
-		return
+		return fmt.Errorf("resolve output path: %w", err)
 	}
-
-	fmt.Println("--- 1. Generated AST ---")
-	for _, stmt := range programAST {
-		fmt.Println(stmt.String())
+	cmd := exec.Command("gcc", "-std=c11", "-Wall", "-Wextra", "-Werror", "-Wno-unused-parameter", "-O3", "-march=native", tmpCFile, "-o", outputPath)
+	cmd.Stderr = stderr
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("GCC compilation failed: %w", err)
 	}
-
-	fmt.Println("\n--- 2. Semantic Analysis & Graph Construction ---")
-	res := parser.NewResolver()
-
-	graph, err := res.Resolve(programAST)
-	if err != nil {
-		fmt.Printf("❌ Invariant Error: %s\n", err)
-		return
-	}
-	fmt.Println("✅ Axioms and scoping invariants satisfied!")
-
-	fmt.Println("\n--- 2b. Generated Data Flow Graph (DOT) ---")
-	dotOutput := graph.ToDOT()
-	fmt.Println(dotOutput)
-
-	_ = os.WriteFile("graph.dot", []byte(dotOutput), 0644)
-	fmt.Println("💾 Graph specification exported to 'graph.dot'!")
-
-	fmt.Println("\n--- 3. Generated C Code ---")
-	codegen := parser.NewCodeGenerator()
-
-	cCode, err := codegen.Generate(graph)
-	if err != nil {
-		fmt.Printf("❌ Code generation error: %s\n", err)
-		return
-	}
-	fmt.Println(cCode)
-
-	outputName := "app"
-	fmt.Printf("--- 4. Backend Compilation ---\n")
-	fmt.Printf("[COMPILER] Generating native binary '%s'...\n", outputName)
-
-	err = compileToBinary(cCode, outputName)
-	if err != nil {
-		fmt.Printf("❌ Binary generation error: %v\n", err)
-		os.Exit(1)
-	}
-
-	fmt.Printf("✅ Compilation successful! Executable created: './%s'\n", outputName)
+	return nil
 }

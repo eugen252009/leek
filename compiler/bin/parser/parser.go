@@ -8,7 +8,7 @@ import (
 
 type Parser struct {
 	scanner scanner.Scanner
-	ch      rune 
+	ch      rune
 }
 
 func NewParser(src io.Reader, filename string) *Parser {
@@ -69,7 +69,8 @@ func (p *Parser) parseStatement() (Statement, error) {
 }
 
 func (p *Parser) parseFunction(isImpure bool) (Statement, error) {
-	p.next() 
+	pos := p.scanner.Position
+	p.next()
 
 	if p.ch != scanner.Ident {
 		return nil, p.error("expected function name")
@@ -106,6 +107,7 @@ func (p *Parser) parseFunction(isImpure bool) (Statement, error) {
 		IsImpure:   isImpure,
 		Parameters: params,
 		Body:       body,
+		Pos:        pos,
 	}, nil
 }
 
@@ -136,7 +138,7 @@ func (p *Parser) parseParameters() ([]Parameter, error) {
 }
 
 func (p *Parser) parseBlockStatement() (*BlockStatement, error) {
-	p.next() 
+	p.next()
 	block := &BlockStatement{Statements: []Statement{}}
 
 	for p.ch != '}' && p.ch != scanner.EOF {
@@ -158,6 +160,7 @@ func (p *Parser) parseBlockStatement() (*BlockStatement, error) {
 }
 
 func (p *Parser) parseLetStatement() (Statement, error) {
+	pos := p.scanner.Position
 	p.next()
 
 	if p.ch != scanner.Ident {
@@ -187,6 +190,7 @@ func (p *Parser) parseLetStatement() (Statement, error) {
 		Name:  varName,
 		Type:  varType,
 		Value: val,
+		Pos:   pos,
 	}, nil
 }
 

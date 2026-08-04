@@ -2,6 +2,7 @@ package parser
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 )
 
@@ -21,7 +22,7 @@ func (cg *CodeGenerator) Generate(graph *ProgramGraph) (string, error) {
 	cg.generateArenaRuntime()
 
 	cg.builder.WriteString("// --- Function Prototypes ---\n")
-	for _, node := range graph.Nodes {
+	for _, node := range sortedFunctionNodes(graph) {
 		if _, isFn := node.SourceNode.(*FunctionStatement); isFn {
 			cg.generateFunctionPrototype(node)
 		}
@@ -29,7 +30,7 @@ func (cg *CodeGenerator) Generate(graph *ProgramGraph) (string, error) {
 	cg.builder.WriteString("\n")
 
 	cg.builder.WriteString("// --- Function Implementations ---\n")
-	for _, node := range graph.Nodes {
+	for _, node := range sortedFunctionNodes(graph) {
 		if _, isFn := node.SourceNode.(*FunctionStatement); isFn {
 			if err := cg.generateFunctionBody(node); err != nil {
 				return "", err
@@ -38,6 +39,17 @@ func (cg *CodeGenerator) Generate(graph *ProgramGraph) (string, error) {
 	}
 
 	return cg.builder.String(), nil
+}
+
+func sortedFunctionNodes(graph *ProgramGraph) []*GraphNode {
+	var nodes []*GraphNode
+	for _, node := range graph.Nodes {
+		if _, ok := node.SourceNode.(*FunctionStatement); ok {
+			nodes = append(nodes, node)
+		}
+	}
+	sort.Slice(nodes, func(i, j int) bool { return nodes[i].ID < nodes[j].ID })
+	return nodes
 }
 
 func (cg *CodeGenerator) generateArenaRuntime() {
@@ -77,7 +89,11 @@ func (cg *CodeGenerator) generateFunctionPrototype(node *GraphNode) {
 		params = append(params, fmt.Sprintf("%s %s", cg.mapType(p.Type), p.Name))
 	}
 
-	cg.builder.WriteString(fmt.Sprintf("%s %s(%s);\n", returnType, node.ID, strings.Join(params, ", ")))
+	name := node.ID
+	if name == "main" {
+		name = "leek_main"
+	}
+	cg.builder.WriteString(fmt.Sprintf("%s %s(%s);\n", returnType, name, strings.Join(params, ", ")))
 }
 
 func (cg *CodeGenerator) generateFunctionBody(node *GraphNode) error {
@@ -87,7 +103,11 @@ func (cg *CodeGenerator) generateFunctionBody(node *GraphNode) error {
 	}
 
 	returnType := "void"
-	cg.builder.WriteString(fmt.Sprintf("%s %s(LeekArena* parent_arena", returnType, node.ID))
+	name := node.ID
+	if name == "main" {
+		name = "leek_main"
+	}
+	cg.builder.WriteString(fmt.Sprintf("%s %s(LeekArena* parent_arena", returnType, name))
 	for _, p := range fnStmt.Parameters {
 		cg.builder.WriteString(fmt.Sprintf(", %s %s", cg.mapType(p.Type), p.Name))
 	}
@@ -115,6 +135,9 @@ func (cg *CodeGenerator) generateFunctionBody(node *GraphNode) error {
 	cg.builder.WriteString("\n    // Scope Exit: Local arena is atomized instantly, zero GC overhead\n")
 	cg.builder.WriteString("    // local_arena collapses natively here via stack frame exit\n")
 	cg.builder.WriteString("}\n\n")
+	if node.ID == "main" {
+		cg.builder.WriteString("int main(void) { leek_main(NULL); return 0; }\n\n")
+	}
 
 	return nil
 }
@@ -144,6 +167,6 @@ func (cg *CodeGenerator) mapType(leekType string) string {
 	case "bool":
 		return "int"
 	default:
-		return "void*" 
+		return "void*"
 	}
 }

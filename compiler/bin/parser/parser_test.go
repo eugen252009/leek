@@ -30,3 +30,11 @@ func TestParser_BasicStructure(t *testing.T) {
 		t.Errorf("Expected name 'test', got '%s'", fn.Name)
 	}
 }
+
+func TestParser_DiagnosticIncludesLocation(t *testing.T) {
+	p := NewParser(strings.NewReader("fn main() {\n  let x u32 =\n}"), "broken.lk")
+	_, err := p.ParseProgram()
+	if err == nil || !strings.Contains(err.Error(), "broken.lk:3:") {
+		t.Fatalf("expected located syntax error, got %v", err)
+	}
+}

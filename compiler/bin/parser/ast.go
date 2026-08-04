@@ -3,6 +3,7 @@ package parser
 import (
 	"fmt"
 	"strings"
+	"text/scanner"
 )
 
 // ============================================================================
@@ -25,7 +26,7 @@ const (
 	DataEdge EdgeType = iota
 	ControlEdge
 	EffectEdge
-	KpnFifoEdge 
+	KpnFifoEdge
 )
 
 type KpnMetadata struct {
@@ -79,7 +80,7 @@ func (p *ProgramGraph) ToDOT() string {
 	sb.WriteString("    edge [fontname=\"Courier\", fontsize=9];\n\n")
 
 	for id, node := range p.Nodes {
-		fillcolor := "#E1F5FE" 
+		fillcolor := "#E1F5FE"
 		if node.Type == ImpureScope {
 			fillcolor = "#FFEBEE"
 		}
@@ -154,6 +155,10 @@ type Node interface {
 	String() string
 }
 
+// SourcePos is retained on frontend nodes so later stages can report useful
+// diagnostics without having to reconstruct positions from generated graph IDs.
+type SourcePos = scanner.Position
+
 type Statement interface {
 	Node
 	statementNode()
@@ -182,6 +187,7 @@ type FunctionStatement struct {
 	IsImpure   bool
 	Parameters []Parameter
 	Body       *BlockStatement
+	Pos        SourcePos
 }
 
 func (fs *FunctionStatement) statementNode() {}
@@ -197,6 +203,7 @@ type LetStatement struct {
 	Name  string
 	Type  string
 	Value string
+	Pos   SourcePos
 }
 
 func (ls *LetStatement) statementNode() {}

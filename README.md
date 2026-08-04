@@ -1,5 +1,28 @@
 # Leek (lK)
 
+## Current Prototype CLI
+
+From `compiler/`, compile the sample program with `go run .`. A source file
+can be supplied explicitly, along with an executable and DOT graph path:
+
+```text
+go run . -o build/app --graph build/graph.dot program.lk
+```
+
+The current frontend supports `fn` and `impure fn` declarations, typed
+parameters, blocks, and integer `let` declarations. A minimal valid program is:
+
+```leek
+fn main() {
+    let answer u32 = 42
+}
+```
+
+Compilation validates syntax, duplicate declarations, known primitive types,
+and references to earlier declarations before generating C and a native
+executable. Returns, calls, general expressions, nested lexical scopes,
+runtime IO, and complete type checking remain outside this prototype.
+
 ## A Deterministic Scope-Based Programming Model for Visible Dataflow Execution
 
 ### Draft Whitepaper — Revision 0.1
