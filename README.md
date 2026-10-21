@@ -9,8 +9,9 @@ can be supplied explicitly, along with an executable and DOT graph path:
 go run . -o build/app --graph build/graph.dot program.lk
 ```
 
-The current frontend supports `fn` and `impure fn` declarations, typed
-parameters, blocks, and integer `let` declarations. A minimal valid program is:
+The current scalar frontend supports `fn` and `impure fn`, typed parameters and
+results, `let`, returns, `if`/`else` blocks, direct calls, checked integer expressions, and pure
+composition with `->`. A minimal valid program is:
 
 ```leek
 fn main() {
@@ -18,10 +19,55 @@ fn main() {
 }
 ```
 
-Compilation validates syntax, duplicate declarations, known primitive types,
-and references to earlier declarations before generating C and a native
-executable. Returns, calls, general expressions, nested lexical scopes,
-runtime IO, and complete type checking remain outside this prototype.
+```leek
+fn square(x u32) u32 { return x * x }
+fn double(x u32) u32 { return x * 2 }
+
+impure fn main() {
+    let result u32 = 10 -> square -> double
+    print(result)
+}
+```
+
+`->` accepts only verified pure stages. Effectful sources and additional
+arguments are allowed in impure scopes, evaluated exactly once in defined order.
+The resolver checks scalar types, transitive effects, returns, and call cycles.
+Arithmetic overflow, underflow, and division by zero fail deterministically.
+Printing is an impure intrinsic; pure functions cannot print.
+
+Automatic constraint analysis is available as a separate inspection mode:
+
+```sh
+go run . -constraints examples/constraints.lk
+```
+
+It emits JSON with input facts, derived success preconditions, and
+`PROVEN`/`UNKNOWN`/`VIOLATED` statuses. All runtime checks remain unchanged;
+unknown or violated obligations do not reject programs. See
+[Automatic Constraint Analysis](docs/constraint-analysis.md) and its
+[qualification report](qualification/constraint-analysis.md).
+
+[Path-sensitive analysis](docs/path-sensitive-constraints.md) proves requirements
+from branch and short-circuit conditions, including across pure calls. An
+experimental [proof-gated optimizer](docs/proof-gated-optimization.md) is opt-in:
+
+```sh
+go run . -constraints examples/path-sensitive.lk
+go run . -optimize -o /tmp/leek-opt -graph /tmp/leek-opt.dot examples/path-sensitive.lk
+```
+
+It removes proven local unsigned binary-arithmetic guards in completely analyzed
+pure functions. Unknown/violated, signed, impure-body, and caller-dependent callee
+checks remain. Without `-optimize` (or with `-optimize=false`), lowering stays
+canonical and fully checked. See the [analysis qualification](qualification/path-sensitive-constraints.md)
+and [optimization qualification](qualification/proof-gated-optimization.md).
+
+See [Pure Composition Specification](pure-composition.md),
+[qualification report](qualification/pure-composition.md), and
+[examples](compiler/examples/). Collections, loops,
+recursion, explicit constraint annotations/enforcement, external/indirect calls,
+floating-point arithmetic, and broader optimization passes remain deferred. Noncapturing nested functions
+work; outer captures receive an unsupported-feature diagnostic.
 
 ## A Deterministic Scope-Based Programming Model for Visible Dataflow Execution
 
@@ -157,7 +203,7 @@ The goal is to make memory movement visible to the developer.
 Functions are deterministic unless explicitly marked otherwise.
 
 ```leek
-fn process(data) -> result
+fn process(data Input) Result
 
 ```
 
@@ -182,7 +228,7 @@ This allows:
 External uncertainty must be isolated explicitly.
 
 ```leek
-impure fn read_file(path) -> buffer
+impure fn read_file(path Path) Buffer
 
 ```
 
@@ -551,6 +597,12 @@ Or more simply:
 > Syntax may vary. Mechanics may not.
 
 ---
+
+### Historical sketch — not implemented or normative
+
+The following older syntax sketch predates the current purity and outward-flow
+rules. Its implicit top-level scope and parent mutation are not supported; it
+must not be interpreted as an exception to `axioms.md` or `pure-composition.md`.
 
 ```leek
 // Global entry context behaves as implicit main scope

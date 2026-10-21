@@ -1,0 +1,14 @@
+// Expected compile-time error: a pure wrapper cannot hide observable I/O.
+impure fn observe(x u32) u32 {
+    print(x)
+    return x
+}
+
+fn wrapper(x u32) u32 {
+    return observe(x)
+}
+
+impure fn main() {
+    let result u32 = 10 -> wrapper
+    print(result)
+}

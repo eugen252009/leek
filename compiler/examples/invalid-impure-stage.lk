@@ -1,0 +1,10 @@
+// Expected compile-time error: impure stages cannot be composed with ->.
+impure fn observe(x u32) u32 {
+    print(x)
+    return x
+}
+
+impure fn main() {
+    let result u32 = 10 -> observe
+    print(result)
+}

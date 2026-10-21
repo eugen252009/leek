@@ -2,6 +2,7 @@ package parser
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 	"text/scanner"
 )
@@ -59,6 +60,13 @@ type ProgramGraph struct {
 	Nodes  map[string]*GraphNode
 	Edges  []*GraphEdge
 	Starts []*GraphNode
+	// Semantic annotations retain the source relations for future contract analysis.
+	Functions    map[string]*FunctionInfo
+	Expressions  map[*Expr]*ExprInfo
+	Declarations map[*LetStatement]*GraphNode
+	Returns      map[*ReturnStatement]*GraphNode
+	Blocks       map[*BlockStatement]*GraphNode
+	Validated    bool
 }
 
 func NewProgramGraph() *ProgramGraph {
@@ -79,7 +87,13 @@ func (p *ProgramGraph) ToDOT() string {
 	sb.WriteString("    node [shape=box, style=\"filled,rounded\", fontname=\"Courier\", fontsize=11];\n")
 	sb.WriteString("    edge [fontname=\"Courier\", fontsize=9];\n\n")
 
-	for id, node := range p.Nodes {
+	ids := make([]string, 0, len(p.Nodes))
+	for id := range p.Nodes {
+		ids = append(ids, id)
+	}
+	sort.Strings(ids)
+	for _, id := range ids {
+		node := p.Nodes[id]
 		fillcolor := "#E1F5FE"
 		if node.Type == ImpureScope {
 			fillcolor = "#FFEBEE"
@@ -149,6 +163,7 @@ func VerifyKpnCompatibility(p *ProgramGraph, parallelScope *GraphNode) error {
 type Parameter struct {
 	Name string
 	Type string
+	Pos  SourcePos
 }
 
 type Node interface {
@@ -185,6 +200,7 @@ func (bs *BlockStatement) statementNode() {}
 type FunctionStatement struct {
 	Name       string
 	IsImpure   bool
+	ReturnType string // Empty means no result; return types never use ->.
 	Parameters []Parameter
 	Body       *BlockStatement
 	Pos        SourcePos
@@ -202,7 +218,8 @@ func (fs *FunctionStatement) String() string {
 type LetStatement struct {
 	Name  string
 	Type  string
-	Value string
+	Value string // Legacy literal/name AST input; normalized by the resolver.
+	Expr  *Expr
 	Pos   SourcePos
 }
 

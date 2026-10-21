@@ -31,6 +31,23 @@ func TestParser_BasicStructure(t *testing.T) {
 	}
 }
 
+func TestParser_ParameterPositions(t *testing.T) {
+	p := NewParser(strings.NewReader("fn helper(\n  x u32,\n  y u64\n) {}"), "params.lk")
+	ast, err := p.ParseProgram()
+	if err != nil {
+		t.Fatal(err)
+	}
+	params := ast[0].(*FunctionStatement).Parameters
+	if len(params) != 2 {
+		t.Fatalf("expected two parameters, got %d", len(params))
+	}
+	for i, param := range params {
+		if param.Pos.Filename != "params.lk" || param.Pos.Line != i+2 || param.Pos.Column != 3 {
+			t.Errorf("unexpected parameter position: %+v", param.Pos)
+		}
+	}
+}
+
 func TestParser_DiagnosticIncludesLocation(t *testing.T) {
 	p := NewParser(strings.NewReader("fn main() {\n  let x u32 =\n}"), "broken.lk")
 	_, err := p.ParseProgram()

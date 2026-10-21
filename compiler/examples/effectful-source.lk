@@ -1,0 +1,18 @@
+// Prints 10, 2, 102: the source and extra argument each run once, in order.
+impure fn observe(x u32) u32 {
+    print(x)
+    return x
+}
+
+fn square(x u32) u32 {
+    return x * x
+}
+
+fn add(x u32, extra u32) u32 {
+    return x + extra
+}
+
+impure fn main() {
+    let result u32 = observe(10) -> square -> add(observe(2))
+    print(result)
+}

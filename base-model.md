@@ -1,3 +1,12 @@
+> **Implementation boundary:** This is the aspirational graph model. The current
+> scalar implementation is specified in [pure-composition.md](pure-composition.md).
+> Conditional block scopes and condition-to-block control edges are now included;
+> see [path-sensitive constraints](docs/path-sensitive-constraints.md).
+> It retains AST evaluation/short-circuit structure alongside value/effect edges;
+> DOT alone is not a scheduler. Function-call recursion is distinct from cyclic
+> value dependencies and is deferred, not permanently forbidden by this model.
+> `axioms.md` remains authoritative where older terminology differs.
+
 # 1. Core Model
 
 The language is built upon a directed, acyclic data- and effect-graph:
@@ -28,8 +37,8 @@ $$n \in \{ PURE\_SCOPE, IMPURE\_SCOPE, PARALLEL\_SCOPE, MEMORY\_SCOPE, IO\_NODE 
 Characteristics:
 
 * Deterministic
-* Zero side effects
-* Pure function mapping: $f: Input \rightarrow Output$
+* No externally observable mutation or user I/O; unaliased local implementation mutation is permitted.
+* Deterministic mapping from inputs to values or defined failures; failure behavior must be preserved.
 * Referentially transparent
 
 Formal Invariant:

@@ -105,7 +105,7 @@ The only legal mechanism for transferring data from a child scope into a parent 
 
 Every operation belongs to exactly one category:
 
-* **Pure**: Deterministic transformations (identical input always produces identical output, no externally visible mutation, no impure state observed).
+* **Pure**: Deterministic transformations (identical inputs produce identical values or defined failures; no externally visible mutation, observable I/O, or impure state observation). Internal mutation of unaliased, scope-local implementation storage is permitted when it does not escape or change observable value semantics.
 * **Impure**: Operations interacting with hardware, external state, system clocks, interrupts, non-deterministic sources, foreign interfaces, or mutable external memory.
 
 ### A4 — Controlled Effect Boundaries
@@ -113,7 +113,19 @@ Every operation belongs to exactly one category:
 External interaction is directional:
 
 * **Inbound Effects**: Any operation that reads mutable external state, mutates global state, or introduces non-determinism must occur inside impure scopes.
-* **Outbound Effects**: Pure scopes may emit observational effects (logging, printing, tracing) provided such effects do not mutate computational state and do not alter determinism.
+* **Outbound Effects**: Observable output, including logging, printing, and tracing, must occur inside impure scopes. Pure functions cannot perform observable I/O, directly or transitively.
+
+**Intentional semantic revision — pure composition:** This replaces the earlier
+exception allowing observational output from pure scopes. `->` exclusively
+composes verified pure stages. An effectful source or additional argument may
+feed those stages within an impure scope; the whole expression retains those
+effects. Stage purity never erases source effects or their ordering.
+
+Checked arithmetic failures are defined language outcomes, not arbitrary user
+I/O capabilities. Purity does not authorize changing whether or when a failure
+occurs. See [the scalar pure-composition specification](pure-composition.md)
+for evaluation order, transitive verification, failure semantics, implementation
+limits, and future contract propagation.
 
 ### A5 — Arena-Based Lifetime Model
 

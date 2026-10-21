@@ -1,0 +1,13 @@
+// Prints 200. Return types do not use ->.
+fn square(x u32) u32 {
+    return x * x
+}
+
+fn double(x u32) u32 {
+    return x * 2
+}
+
+impure fn main() {
+    let result u32 = 10 -> square -> double
+    print(result)
+}

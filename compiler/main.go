@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
@@ -9,13 +10,17 @@ import (
 	"path/filepath"
 	"strings"
 
+	"leek/bin/constraints"
+	"leek/bin/optimization"
 	"leek/bin/parser"
 )
 
 type options struct {
-	input  string
-	output string
-	graph  string
+	input       string
+	output      string
+	graph       string
+	constraints bool
+	optimize    bool
 }
 
 func main() {
@@ -27,6 +32,8 @@ func run(args []string, stdout, stderr io.Writer) int {
 	fs.SetOutput(stderr)
 	output := fs.String("o", "app", "output executable path")
 	graph := fs.String("graph", "graph.dot", "output DOT graph path")
+	analysis := fs.Bool("constraints", false, "report advisory constraints as JSON without compiling or writing artifacts")
+	optimize := fs.Bool("optimize", false, "experimental: eliminate proven redundant unsigned arithmetic guards (default: checked everywhere)")
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
@@ -44,7 +51,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return 2
 	}
 
-	if err := compile(options{input: input, output: *output, graph: *graph}, stdout, stderr); err != nil {
+	if err := compile(options{input: input, output: *output, graph: *graph, constraints: *analysis, optimize: *optimize}, stdout, stderr); err != nil {
 		fmt.Fprintf(stderr, "leek: %v\n", err)
 		return 1
 	}
@@ -67,12 +74,31 @@ func compile(opts options, stdout, stderr io.Writer) error {
 		return err
 	}
 
+	if opts.constraints {
+		report, err := constraints.Analyze(graph)
+		if err != nil {
+			return err
+		}
+		encoder := json.NewEncoder(stdout)
+		encoder.SetIndent("", "  ")
+		return encoder.Encode(report)
+	}
+
 	dot := graph.ToDOT()
 	if err := writeArtifact(opts.graph, []byte(dot)); err != nil {
 		return fmt.Errorf("write graph: %w", err)
 	}
 
-	cCode, err := parser.NewCodeGenerator().Generate(graph)
+	var cCode string
+	if opts.optimize {
+		var elisions []optimization.Elision
+		cCode, elisions, err = optimization.Generate(graph)
+		if err == nil {
+			fmt.Fprintf(stdout, "proof-gated: removed %d checked guards\n", len(elisions))
+		}
+	} else {
+		cCode, err = parser.NewCodeGenerator().Generate(graph)
+	}
 	if err != nil {
 		return fmt.Errorf("code generation: %w", err)
 	}

@@ -1,0 +1,25 @@
+// Analyze with: go run . -constraints examples/constraints.lk
+// calculate's derived precondition is x > 1, not assumed or enforced.
+fn minus1(x u32) u32 {
+    return x - 1
+}
+
+fn divide_12_by(x u32) u32 {
+    return 12 / x
+}
+
+fn calculate(x u32) u32 {
+    return x -> minus1 -> divide_12_by
+}
+
+fn safe() u32 {
+    return 2 -> calculate
+}
+
+fn failing() u32 {
+    return 1 -> calculate
+}
+
+impure fn main() {
+    print(safe())
+}
