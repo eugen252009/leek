@@ -2,6 +2,7 @@ package optimization
 
 import (
 	"fmt"
+	"reflect"
 	"strconv"
 	"strings"
 	"testing"
@@ -128,7 +129,7 @@ func TestSpecializationStructureAndProvenance(t *testing.T) {
 	}
 	after, _ := parser.NewCodeGenerator().Generate(g)
 	again, err := GenerateSpecialized(g)
-	if err != nil || canonical != after || dot != g.ToDOT() || r.Code != again.Code || fmt.Sprint(r.Variants) != fmt.Sprint(again.Variants) || fmt.Sprint(r.Witnesses) != fmt.Sprint(again.Witnesses) {
+	if err != nil || canonical != after || dot != g.ToDOT() || r.Code != again.Code || !reflect.DeepEqual(r.Variants, again.Variants) || !reflect.DeepEqual(r.Witnesses, again.Witnesses) {
 		t.Fatal("IR changed or nondeterministic specialization")
 	}
 }

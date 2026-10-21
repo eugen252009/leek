@@ -1,5 +1,9 @@
 # Proof-guided specialization — qualification
 
+Historical evidence for milestone `eead78a`. The current extension and its
+rerun evidence are in [specialization policy qualification](specialization-policy.md).
+The mutation harness now includes the new implication and policy gates as well.
+
 Assessment: **PASS for the implemented bounded unsigned subset**. Default
 execution is fully checked; specialization requires `-optimize`. Starting tree:
 `117bd09`; Linux amd64, Go 1.26.2, GCC 14.2.0. No push, release, publication or

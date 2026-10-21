@@ -1,0 +1,19 @@
+fn two(x u32) u32 {
+    let earlier u32 = x - 1
+    return x - 10
+}
+
+// Two useful contracts: the first subtraction is safe, or both are safe.
+fn a_first(x u32) u32 { if x >= 1 { return two(x) } return 0 }
+fn b_second(x u32) u32 { if x >= 10 { return two(x) } return 0 }
+fn c_strong(x u32) u32 { if x >= 20 { return two(x) } return 0 }
+fn d_equal(x u32) u32 { if x == 5 { return two(x) } return 0 }
+fn e_weak(x u32) u32 { if x >= 0 { return two(x) } return 0 }
+
+impure fn main() {
+    print(a_first(12))
+    print(b_second(10))
+    print(c_strong(20))
+    print(d_equal(0))
+    print(e_weak(12))
+}

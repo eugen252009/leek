@@ -1,7 +1,6 @@
 package optimization
 
 import (
-	"fmt"
 	"sort"
 
 	"leek/bin/constraints"
@@ -28,12 +27,19 @@ type Variant struct {
 	Name, Function string
 	Eliminated     []string
 	Calls          []Routing
+	Assumptions    []Requirement
+	Parameters     []constraints.Fact
+	Semantics      string
+	Cost           Cost
+	ReuseCount     int
 }
 type SpecializationResult struct {
-	Code          string
+	Code          string `json:"-"`
 	LocalElisions []Elision
 	Variants      []Variant
 	Witnesses     []Witness
+	Decisions     []Decision
+	Summary       PolicySummary
 	// Analysis belongs to this generation only, and is provided for inspection.
 	Analysis *constraints.Report
 }
@@ -49,13 +55,16 @@ func Generate(g *parser.ProgramGraph) (string, []Elision, error) {
 }
 
 type candidate struct {
-	f        *parser.FunctionInfo
-	checks   map[*parser.GraphNode]bool
-	children map[*parser.GraphNode]*candidate
+	f         *parser.FunctionInfo
+	checks    map[*parser.GraphNode]bool
+	children  map[*parser.GraphNode]*candidate
+	caller    string
+	path      []*parser.GraphNode
+	instances map[*parser.GraphNode]int
 }
 
 func newCandidate(f *parser.FunctionInfo) *candidate {
-	return &candidate{f: f, checks: map[*parser.GraphNode]bool{}, children: map[*parser.GraphNode]*candidate{}}
+	return &candidate{f: f, checks: map[*parser.GraphNode]bool{}, children: map[*parser.GraphNode]*candidate{}, instances: map[*parser.GraphNode]int{}}
 }
 
 func sortedNodes[T any](m map[*parser.GraphNode]T) []*parser.GraphNode {
@@ -77,6 +86,10 @@ func GenerateSpecialized(g *parser.ProgramGraph) (*SpecializationResult, error) 
 	}
 	local, elisions := localChecks(g, report)
 	out := &SpecializationResult{LocalElisions: elisions, Analysis: report}
+	implication, err := constraints.NewImplicationEngine(report)
+	if err != nil {
+		return nil, err
+	}
 	functions := map[string]*constraints.FunctionReport{}
 	for _, f := range report.Functions {
 		functions[f.Name] = f
@@ -94,9 +107,20 @@ func GenerateSpecialized(g *parser.ProgramGraph) (*SpecializationResult, error) 
 	if !report.Limited {
 		for _, f := range report.Functions {
 			root := newCandidate(g.Functions[f.Name])
+			root.caller = f.Name
 			roots = append(roots, root)
+			for _, call := range f.Calls {
+				callee := g.Functions[call.Function]
+				if callee != nil && callee.Effects == parser.EffectNone && functions[call.Function].Complete {
+					n := g.Nodes[call.Node]
+					child := newCandidate(callee)
+					child.caller = f.Name
+					child.path = []*parser.GraphNode{n}
+					root.children[n] = child
+				}
+			}
 			for _, o := range f.Obligations {
-				if o.Proof.Status != constraints.Proven || !o.Proof.Consistent || len(o.Origin.Via) == 0 || len(o.Origin.Via) > maxSpecializationDepth {
+				if len(o.Origin.Via) == 0 || len(o.Origin.Via) > maxSpecializationDepth {
 					continue
 				}
 				target := root.f
@@ -136,16 +160,28 @@ func GenerateSpecialized(g *parser.ProgramGraph) (*SpecializationResult, error) 
 				current := root
 				for _, call := range path {
 					if current.children[call] == nil {
-						current.children[call] = newCandidate(calls[current.f][call])
+						child := newCandidate(calls[current.f][call])
+						child.caller = f.Name
+						child.path = append(append([]*parser.GraphNode(nil), current.path...), call)
+						current.children[call] = child
 					}
 					current = current.children[call]
+				}
+				current.instances[n] = o.ID
+				proof, queryErr := implication.Implies(f.Name, o.Environment, o.Required)
+				if queryErr != nil {
+					return nil, queryErr
+				}
+				if o.Proof.Status != constraints.Proven || !o.Proof.Consistent || proof.Proof.Status != constraints.Proven || !proof.Proof.Consistent {
+					continue
 				}
 				current.checks[n] = true
 				out.Witnesses = append(out.Witnesses, Witness{f.Name, append([]string(nil), o.Origin.Via...), n.ID, o.ID, o.Environment})
 			}
 		}
 	}
-	b := &specializer{local: local, counts: map[*parser.FunctionInfo]int{}}
+	b := &specializer{local: local, counts: map[*parser.FunctionInfo]int{}, functions: functions, implication: implication,
+		records: map[string]*Variant{}, costs: map[*parser.FunctionInfo]int{}, proofCache: map[proofQuery]constraints.Proof{}}
 	routes := map[*parser.GraphNode]string{}
 	for _, root := range roots {
 		for _, call := range sortedNodes(root.children) {
@@ -234,7 +270,9 @@ func GenerateSpecialized(g *parser.ProgramGraph) (*SpecializationResult, error) 
 			continue
 		}
 		variants = append(variants, v)
-		d := Variant{Name: v.Name, Function: v.Function.Decl.Name}
+		d := *b.records[v.Name]
+		d.Eliminated = nil
+		d.Calls = nil
 		for _, n := range sortedNodes(v.Proven) {
 			if !local[n] {
 				d.Eliminated = append(d.Eliminated, n.ID)
@@ -245,51 +283,46 @@ func GenerateSpecialized(g *parser.ProgramGraph) (*SpecializationResult, error) 
 		}
 		out.Variants = append(out.Variants, d)
 	}
+	out.Decisions = b.decisions
+	out.Summary = PolicySummary{Generated: len(variants), Allocated: len(b.variants), AdditionalUnits: b.units, BudgetExhausted: b.budgetExhausted}
+	for i := range out.Decisions {
+		d := &out.Decisions[i]
+		actualRoutes := routes
+		var actual string
+		for _, id := range d.Path {
+			n := g.Nodes[id]
+			actual = actualRoutes[n]
+			if actual == "" {
+				actual = g.Expressions[n.SourceNode.(*parser.Expr)].Callee.CName
+				actualRoutes = routes
+			} else {
+				for _, v := range variants {
+					if v.Name == actual {
+						actualRoutes = v.Routes
+						break
+					}
+				}
+			}
+		}
+		d.FinalTarget = actual
+		if aliases[d.Selected] != "" {
+			d.Action = "CANONICAL"
+			d.Reason = "canonical_dispatch_equivalent"
+			out.Summary.RedundantAvoided++
+		}
+		if d.Action == "REUSE" && actual == d.Selected {
+			out.Summary.Reused++
+			for j := range out.Variants {
+				if out.Variants[j].Name == actual {
+					out.Variants[j].ReuseCount++
+				}
+			}
+		}
+	}
 	out.Code, err = parser.NewCodeGenerator().GenerateSpecializedChecks(g, local, routes, variants)
 	return out, err
 }
 
-type specializer struct {
-	local    map[*parser.GraphNode]bool
-	counts   map[*parser.FunctionInfo]int
-	variants []parser.SpecializedFunction
-}
-
-// Reuse keys are structural: exact body pointer, identical eliminated-node
-// identities and identical child routes. Different argument substitutions may
-// share this implementation ONLY after independent exact-site proof discharge.
-// Thus a variant's contract is the conjunction of its removed guarded checks,
-// not the caller's stronger, arbitrary facts. No proof text enters this gate.
-func (b *specializer) variant(c *candidate) string {
-	routes := map[*parser.GraphNode]string{}
-	for _, call := range sortedNodes(c.children) {
-		if name := b.variant(c.children[call]); name != "" {
-			routes[call] = name
-		}
-	}
-	if len(c.checks) == 0 && len(routes) == 0 {
-		return ""
-	}
-	proven := map[*parser.GraphNode]bool{}
-	for n := range b.local {
-		proven[n] = true
-	}
-	for n := range c.checks {
-		proven[n] = true
-	}
-	for _, v := range b.variants {
-		if v.Function == c.f && sameMap(v.Proven, proven) && sameMap(v.Routes, routes) {
-			return v.Name
-		}
-	}
-	if b.counts[c.f] >= maxVariantsPerFunction || len(b.variants) >= maxVariants {
-		return ""
-	}
-	b.counts[c.f]++
-	name := fmt.Sprintf("lk_spec_%d", len(b.variants))
-	b.variants = append(b.variants, parser.SpecializedFunction{Function: c.f, Name: name, Proven: proven, Routes: routes})
-	return name
-}
 func sameMap[T comparable](a, b map[*parser.GraphNode]T) bool {
 	if len(a) != len(b) {
 		return false

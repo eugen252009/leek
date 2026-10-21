@@ -23,15 +23,19 @@ func check(err error) {
 	}
 }
 func main() {
-	if len(os.Args) != 2 {
-		panic("usage: specialization-artifacts <output-directory>; run from compiler/")
+	if len(os.Args) < 2 || len(os.Args) > 3 {
+		panic("usage: specialization-artifacts <output-directory> [source.lk]; run from compiler/")
 	}
 	dir, err := filepath.Abs(os.Args[1])
 	check(err)
 	check(os.MkdirAll(dir, 0755))
-	source, err := os.ReadFile("examples/interprocedural.lk")
+	filename := "examples/interprocedural.lk"
+	if len(os.Args) == 3 {
+		filename = os.Args[2]
+	}
+	source, err := os.ReadFile(filename)
 	check(err)
-	ast, err := parser.NewParser(strings.NewReader(string(source)), "examples/interprocedural.lk").ParseProgram()
+	ast, err := parser.NewParser(strings.NewReader(string(source)), filename).ParseProgram()
 	check(err)
 	g, err := parser.NewResolver().Resolve(ast)
 	check(err)
@@ -48,7 +52,7 @@ func main() {
 	check(os.WriteFile(filepath.Join(dir, "canonical.c"), []byte(canonical), 0644))
 	check(os.WriteFile(filepath.Join(dir, "optimized.c"), []byte(r.Code), 0644))
 	check(os.WriteFile(filepath.Join(dir, "semantic.dot"), []byte(dot), 0644))
-	for name, value := range map[string]any{"analysis": r.Analysis, "plan": map[string]any{"local_elisions": r.LocalElisions, "variants": r.Variants, "eligible_witnesses": r.Witnesses}} {
+	for name, value := range map[string]any{"analysis": r.Analysis, "policy": r, "plan": map[string]any{"local_elisions": r.LocalElisions, "variants": r.Variants, "eligible_witnesses": r.Witnesses}} {
 		data, err := json.MarshalIndent(value, "", "  ")
 		check(err)
 		check(os.WriteFile(filepath.Join(dir, name+".json"), append(data, '\n'), 0644))
@@ -63,7 +67,7 @@ func main() {
 			}
 			out, err := exec.Command(binary).CombinedOutput()
 			check(err)
-			if string(out) != "12\n1\n6\n0\n0\n" {
+			if len(os.Args) == 2 && string(out) != "12\n1\n6\n0\n0\n" {
 				panic(fmt.Sprintf("bad output: %q", out))
 			}
 			if mode == "canonical" {

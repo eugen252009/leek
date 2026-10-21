@@ -61,13 +61,17 @@ pure functions. [Interprocedural summaries](docs/interprocedural-constraints.md)
 also guide bounded [private function specialization](docs/proof-guided-specialization.md):
 proven call sites use variants with redundant guards removed, while unproven
 callers retain checked execution. Direct calls and `->` share the same reasoning.
+The [reuse policy](docs/specialization-policy.md) checks
+[constraint implication](docs/constraint-subsumption.md) before choosing existing
+variants, and bounds new bodies by static benefit and code-generation cost.
 Unknown/violated, signed, and impure-body checks remain.
 Without `-optimize` (or with `-optimize=false`), lowering stays
 canonical and fully checked. See the [analysis qualification](qualification/path-sensitive-constraints.md)
-and [specialization qualification](qualification/proof-guided-specialization.md).
+and [reuse/policy qualification](qualification/specialization-policy.md).
 
 ```sh
 go run . -optimize -o /tmp/leek-specialized -graph /tmp/leek-specialized.dot examples/interprocedural.lk
+go run . -optimize -optimization-report /tmp/leek-policy.json -o /tmp/leek-policy -graph /tmp/leek-policy.dot examples/specialization-policy.lk
 ```
 
 See [Pure Composition Specification](pure-composition.md),

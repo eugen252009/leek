@@ -3,6 +3,11 @@
 Status: experimental, **off by default**. The fully checked canonical program
 defines behavior. This extends the earlier [local guard pass](proof-gated-optimization.md).
 
+The original exact-plan reuse described here has since been extended with
+[constraint subsumption](constraint-subsumption.md) and a
+[bounded cost policy](specialization-policy.md), including structured decisions.
+Those documents specify the current registry eligibility and selection rules.
+
 ## Use and observable evidence
 
 From `compiler/`:

@@ -16,11 +16,12 @@ import (
 )
 
 type options struct {
-	input       string
-	output      string
-	graph       string
-	constraints bool
-	optimize    bool
+	input              string
+	output             string
+	graph              string
+	constraints        bool
+	optimize           bool
+	optimizationReport string
 }
 
 func main() {
@@ -34,6 +35,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 	graph := fs.String("graph", "graph.dot", "output DOT graph path")
 	analysis := fs.Bool("constraints", false, "report advisory constraints as JSON without compiling or writing artifacts")
 	optimize := fs.Bool("optimize", false, "experimental: eliminate proven redundant unsigned arithmetic guards (default: checked everywhere)")
+	optimizationReport := fs.String("optimization-report", "", "write structured specialization decisions as JSON (requires -optimize)")
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
@@ -51,7 +53,11 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return 2
 	}
 
-	if err := compile(options{input: input, output: *output, graph: *graph, constraints: *analysis, optimize: *optimize}, stdout, stderr); err != nil {
+	if *optimizationReport != "" && !*optimize && !*analysis {
+		fmt.Fprintln(stderr, "leek: -optimization-report requires -optimize")
+		return 2
+	}
+	if err := compile(options{input: input, output: *output, graph: *graph, constraints: *analysis, optimize: *optimize, optimizationReport: *optimizationReport}, stdout, stderr); err != nil {
 		fmt.Fprintf(stderr, "leek: %v\n", err)
 		return 1
 	}
@@ -90,8 +96,8 @@ func compile(opts options, stdout, stderr io.Writer) error {
 	}
 
 	var cCode string
+	var result *optimization.SpecializationResult
 	if opts.optimize {
-		var result *optimization.SpecializationResult
 		result, err = optimization.GenerateSpecialized(graph)
 		if err == nil {
 			cCode = result.Code
@@ -99,6 +105,7 @@ func compile(opts options, stdout, stderr io.Writer) error {
 			for _, variant := range result.Variants {
 				fmt.Fprintf(stdout, "specialization: %s -> %s; removed %d guards; specialized %d calls; canonical preserved\n", variant.Function, variant.Name, len(variant.Eliminated), len(variant.Calls))
 			}
+			fmt.Fprintf(stdout, "specialization policy: generated %d; reused %d; redundant avoided %d; additional units %d; budget exhausted %t\n", result.Summary.Generated, result.Summary.Reused, result.Summary.RedundantAvoided, result.Summary.AdditionalUnits, result.Summary.BudgetExhausted)
 		}
 	} else {
 		cCode, err = parser.NewCodeGenerator().Generate(graph)
@@ -108,6 +115,15 @@ func compile(opts options, stdout, stderr io.Writer) error {
 	}
 	if err := compileToBinary(cCode, opts.output, stderr); err != nil {
 		return err
+	}
+	if opts.optimizationReport != "" && result != nil {
+		data, err := json.MarshalIndent(result, "", "  ")
+		if err != nil {
+			return err
+		}
+		if err := writeArtifact(opts.optimizationReport, append(data, '\n')); err != nil {
+			return fmt.Errorf("write optimization report: %w", err)
+		}
 	}
 	fmt.Fprintf(stdout, "compiled %s -> %s\n", opts.input, opts.output)
 	return nil
