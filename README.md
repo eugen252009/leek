@@ -57,10 +57,18 @@ go run . -optimize -o /tmp/leek-opt -graph /tmp/leek-opt.dot examples/path-sensi
 ```
 
 It removes proven local unsigned binary-arithmetic guards in completely analyzed
-pure functions. Unknown/violated, signed, impure-body, and caller-dependent callee
-checks remain. Without `-optimize` (or with `-optimize=false`), lowering stays
+pure functions. [Interprocedural summaries](docs/interprocedural-constraints.md)
+also guide bounded [private function specialization](docs/proof-guided-specialization.md):
+proven call sites use variants with redundant guards removed, while unproven
+callers retain checked execution. Direct calls and `->` share the same reasoning.
+Unknown/violated, signed, and impure-body checks remain.
+Without `-optimize` (or with `-optimize=false`), lowering stays
 canonical and fully checked. See the [analysis qualification](qualification/path-sensitive-constraints.md)
-and [optimization qualification](qualification/proof-gated-optimization.md).
+and [specialization qualification](qualification/proof-guided-specialization.md).
+
+```sh
+go run . -optimize -o /tmp/leek-specialized -graph /tmp/leek-specialized.dot examples/interprocedural.lk
+```
 
 See [Pure Composition Specification](pure-composition.md),
 [qualification report](qualification/pure-composition.md), and

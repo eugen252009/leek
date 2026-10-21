@@ -13,6 +13,23 @@ type CodeGenerator struct {
 	serial  int
 	indent  string
 	proven  map[*GraphNode]bool
+	routes  map[*GraphNode]string
+}
+
+// SpecializedFunction is a transient trusted lowering plan for one exact body.
+// Only optimization.GenerateSpecialized should construct these from fresh proofs.
+// Names are compiler-generated C identifiers; Routes changes only call targets.
+type SpecializedFunction struct {
+	Function *FunctionInfo
+	Name     string
+	Proven   map[*GraphNode]bool
+	Routes   map[*GraphNode]string
+}
+
+// GenerateSpecializedChecks is an internal compiler boundary, like
+// GenerateWithProvenChecks. It does not validate external proof assertions.
+func (cg *CodeGenerator) GenerateSpecializedChecks(graph *ProgramGraph, proven map[*GraphNode]bool, routes map[*GraphNode]string, variants []SpecializedFunction) (string, error) {
+	return cg.generatePlan(graph, proven, routes, variants)
 }
 
 func NewCodeGenerator() *CodeGenerator { return &CodeGenerator{} }
@@ -31,8 +48,12 @@ func (cg *CodeGenerator) GenerateWithProvenChecks(graph *ProgramGraph, proven ma
 	return cg.generate(graph, proven)
 }
 func (cg *CodeGenerator) generate(graph *ProgramGraph, proven map[*GraphNode]bool) (string, error) {
+	return cg.generatePlan(graph, proven, nil, nil)
+}
+func (cg *CodeGenerator) generatePlan(graph *ProgramGraph, proven map[*GraphNode]bool, routes map[*GraphNode]string, variants []SpecializedFunction) (string, error) {
 	cg.proven = proven
-	defer func() { cg.proven = nil }()
+	cg.routes = routes
+	defer func() { cg.proven = nil; cg.routes = nil }()
 	if graph == nil || !graph.Validated {
 		return "", fmt.Errorf("code generation requires a validated semantic graph")
 	}
@@ -44,17 +65,26 @@ func (cg *CodeGenerator) generate(graph *ProgramGraph, proven map[*GraphNode]boo
 	cg.runtime()
 	for _, node := range sortedFunctionNodes(graph) {
 		f := graph.Functions[node.ID]
-		cg.line("%s;", cg.signature(f))
+		cg.line("%s;", cg.signature(f, f.CName))
+	}
+	for _, v := range variants {
+		cg.line("static %s;", cg.signature(v.Function, v.Name))
 	}
 	for _, node := range sortedFunctionNodes(graph) {
-		cg.function(graph.Functions[node.ID])
+		f := graph.Functions[node.ID]
+		cg.function(f, f.CName)
+	}
+	for _, v := range variants {
+		cg.proven, cg.routes = v.Proven, v.Routes
+		cg.line("// specialization %s of %s; canonical body preserved", v.Name, v.Function.Decl.Name)
+		cg.function(v.Function, v.Name)
 	}
 	if f := graph.Functions["main"]; f != nil {
 		cg.line("int main(void) { %s(); return 0; }", f.CName)
 	}
 	return cg.builder.String(), nil
 }
-func (cg *CodeGenerator) signature(f *FunctionInfo) string {
+func (cg *CodeGenerator) signature(f *FunctionInfo, name string) string {
 	params := []string{}
 	for i, p := range f.Decl.Parameters {
 		params = append(params, fmt.Sprintf("%s lk_p%d", cg.mapType(p.Type), i))
@@ -62,10 +92,14 @@ func (cg *CodeGenerator) signature(f *FunctionInfo) string {
 	if len(params) == 0 {
 		params = append(params, "void")
 	}
-	return fmt.Sprintf("%s %s(%s)", cg.mapType(f.Decl.ReturnType), f.CName, strings.Join(params, ", "))
+	return fmt.Sprintf("%s %s(%s)", cg.mapType(f.Decl.ReturnType), name, strings.Join(params, ", "))
 }
-func (cg *CodeGenerator) function(f *FunctionInfo) {
-	cg.line("\n%s {", cg.signature(f))
+func (cg *CodeGenerator) function(f *FunctionInfo, name string) {
+	storage := ""
+	if name != f.CName {
+		storage = "static "
+	}
+	cg.line("\n%s%s {", storage, cg.signature(f, name))
 	cg.indent = "    "
 	cg.vars = map[*GraphNode]string{}
 	for i, p := range f.Decl.Parameters {
@@ -208,7 +242,12 @@ func (cg *CodeGenerator) expr(e *Expr) string {
 			}
 			return ""
 		}
-		call := info.Callee.CName + "(" + strings.Join(values, ", ") + ")"
+		target := info.Callee.CName
+		if name := cg.routes[info.Node]; name != "" {
+			cg.line("// call %s: specialized %s", info.Node.ID, name)
+			target = name
+		}
+		call := target + "(" + strings.Join(values, ", ") + ")"
 		if info.Type == "" {
 			cg.line("%s;", call)
 			return ""

@@ -91,10 +91,14 @@ func compile(opts options, stdout, stderr io.Writer) error {
 
 	var cCode string
 	if opts.optimize {
-		var elisions []optimization.Elision
-		cCode, elisions, err = optimization.Generate(graph)
+		var result *optimization.SpecializationResult
+		result, err = optimization.GenerateSpecialized(graph)
 		if err == nil {
-			fmt.Fprintf(stdout, "proof-gated: removed %d checked guards\n", len(elisions))
+			cCode = result.Code
+			fmt.Fprintf(stdout, "proof-gated: removed %d checked guards\n", len(result.LocalElisions))
+			for _, variant := range result.Variants {
+				fmt.Fprintf(stdout, "specialization: %s -> %s; removed %d guards; specialized %d calls; canonical preserved\n", variant.Function, variant.Name, len(variant.Eliminated), len(variant.Calls))
+			}
 		}
 	} else {
 		cCode, err = parser.NewCodeGenerator().Generate(graph)

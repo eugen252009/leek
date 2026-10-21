@@ -3,6 +3,12 @@
 Status: experimental, **off by default**, deliberately narrower than constraint
 analysis. Canonical checked arithmetic remains the semantic authority.
 
+This document describes the original local pass. It remains active alongside
+the new [proof-guided function specialization](proof-guided-specialization.md).
+Caller-specific guards can now be removed in private variants; canonical callee
+bodies keep their own local proof policy. Statements below about specialization
+being deferred describe the earlier milestone, not the current combined pass.
+
 ## Interface
 
 From `compiler/`:

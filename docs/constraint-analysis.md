@@ -262,8 +262,10 @@ source programs.
 
 No source annotations, generic SMT solver, general relational/path-sensitive
 solver, collections, array bounds, gather/scatter, SIMD, parallel scheduling,
-recursion, interprocedural fixed points, optimizations, guard insertion, check
-removal, speculative execution, or JIT specialization are implemented.
+recursion, interprocedural fixed points, guard insertion, speculative execution,
+or JIT specialization are implemented by this analyzer. Separate opt-in
+[local optimization](proof-gated-optimization.md) and
+[function specialization](proof-guided-specialization.md) consume its proofs.
 
 See [qualification evidence](../qualification/constraint-analysis.md) for actual
 executed tests, finite-domain coverage, mutations, and preservation limits.

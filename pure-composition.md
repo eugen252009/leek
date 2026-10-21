@@ -271,6 +271,11 @@ collision, bounds, and arithmetic semantics; they are not generic ordinary
 functions silently treated as optimization intrinsics in this implementation.
 Conditional `if`/`else` blocks are now implemented as lexical child scopes;
 see [the control-flow specification](docs/path-sensitive-constraints.md).
+Direct pure calls and composition now share reusable
+[interprocedural contracts](docs/interprocedural-constraints.md). Opt-in
+[proof-guided specialization](docs/proof-guided-specialization.md) selects
+private implementations only after caller-specific proof discharge; the checked
+canonical definition, effect order and failure semantics remain authoritative.
 Arrays, loops, recursion, generic/indirect/external
 calls, input/file I/O, SIMD, parallelism, and ownership/aliasing extensions are
 also deferred.

@@ -56,6 +56,12 @@ type CallInfo struct {
 	Kind      string `json:"kind"`
 	Arguments []ID   `json:"arguments"`
 	Pure      bool   `json:"pure"`
+	// These IDs belong to this report's term arena and premise snapshots.
+	Guard        ID    `json:"guard"`
+	Environment  int   `json:"environment"`
+	Precondition ID    `json:"instantiated_precondition"`
+	Proof        Proof `json:"proof"`
+	Complete     bool  `json:"complete"`
 }
 
 type FunctionReport struct {
@@ -372,7 +378,10 @@ func (s *functionState) expr(e *parser.Expr, guard ID) ID {
 				args = append(args, s.expr(arg, guard))
 			}
 			callee := info.Callee
-			s.report.Calls = append(s.report.Calls, CallInfo{Node: info.Node.ID, Function: callee.Decl.Name, Kind: e.Kind, Arguments: append([]ID{}, args...), Pure: callee.Effects == parser.EffectNone})
+			callContext := a.refine(s.context, guard)
+			call := CallInfo{Node: info.Node.ID, Function: callee.Decl.Name, Kind: e.Kind, Arguments: append([]ID{}, args...), Pure: callee.Effects == parser.EffectNone,
+				Guard: guard, Environment: s.snapshot(callContext, guard), Precondition: unknown,
+				Proof: Proof{Unknown, "callee success is not established", callContext.consistent}}
 			if callee.Effects != parser.EffectNone {
 				success := a.raw("opaque", info.Node.ID+":call-completes")
 				s.require(guard, success, s.origin(e))
@@ -389,6 +398,13 @@ func (s *functionState) expr(e *parser.Expr, guard ID) ID {
 					}
 				}
 				memo := map[ID]ID{}
+				call.Complete = summary.Complete
+				call.Precondition = a.substitute(summary.Precondition, mapping, memo)
+				call.Proof = a.prove(call.Precondition, callContext)
+				if !summary.Complete && call.Proof.Status == Proven {
+					call.Proof.Status = Unknown
+					call.Proof.Reason = "incomplete callee summary"
+				}
 				for _, o := range summary.Obligations {
 					if len(s.report.Obligations) >= maxObligations {
 						s.limit("obligation expansion budget exhausted")
@@ -406,6 +422,7 @@ func (s *functionState) expr(e *parser.Expr, guard ID) ID {
 				// Pure incomplete callees may contain opaque float relations. They have
 				// no integer return relations inferred from rounded source spellings.
 			}
+			s.report.Calls = append(s.report.Calls, call)
 		default:
 			s.limit("unsupported expression operation")
 		}

@@ -1,0 +1,30 @@
+fn minus1(x u32) u32 { return x - 1 }
+fn divide_12_by(x u32) u32 { return 12 / x }
+
+fn calculate(x u32) u32 {
+    if x > 1 { return x -> minus1 -> divide_12_by }
+    return 0
+}
+
+fn nested(x u32) u32 { return divide_12_by(minus1(x)) }
+fn guarded_nested(x u32) u32 {
+    if x > 1 { return nested(x) }
+    return 0
+}
+
+// An arbitrary caller still needs the canonical underflow check.
+fn other(x u32) u32 { return minus1(x) }
+
+fn subtract(x u32, amount u32) u32 { return x - amount }
+fn ten(x u32) u32 {
+    if x >= 10 { return x -> subtract(10) }
+    return 0
+}
+
+impure fn main() {
+    print(calculate(2))
+    print(calculate(13))
+    print(guarded_nested(3))
+    print(other(1))
+    print(ten(10))
+}

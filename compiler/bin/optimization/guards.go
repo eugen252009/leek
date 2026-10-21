@@ -16,14 +16,9 @@ type Elision struct {
 	Environment int
 }
 
-// Generate analyzes and immediately lowers the SAME validated graph. It accepts
-// neither external proofs nor cached plans: proof validity cannot outlive this
-// call. As for canonical generation, callers must not mutate the graph concurrently.
-func Generate(g *parser.ProgramGraph) (string, []Elision, error) {
-	report, err := constraints.Analyze(g)
-	if err != nil {
-		return "", nil, err
-	}
+// localChecks consumes the fresh report owned by GenerateSpecialized. It is
+// private so callers cannot supply external proofs or stale cached plans.
+func localChecks(g *parser.ProgramGraph, report *constraints.Report) (map[*parser.GraphNode]bool, []Elision) {
 	proven := map[*parser.GraphNode]bool{}
 	elisions := []Elision{}
 	// Limits or partial summaries fail closed, not open. Each supported unsigned
@@ -65,8 +60,7 @@ func Generate(g *parser.ProgramGraph) (string, []Elision, error) {
 			}
 		}
 	}
-	code, err := parser.NewCodeGenerator().GenerateWithProvenChecks(g, proven)
-	return code, elisions, err
+	return proven, elisions
 }
 func supported(typ, op string) bool {
 	switch typ {
