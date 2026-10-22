@@ -28,7 +28,7 @@ MUTATIONS = [
     ("skip-map", "./bin/parser", "TestDataflowCanonical", [
         (BACKEND, '*out = %s(element);', '*out = element; /* skipped %s */')]),
     ("wrong-accumulator", "./bin/parser", "TestDataflowCanonical", [
-        (BACKEND, 'cg.indent += "    "\n\tcg.line("%s = %s(%s, %s);", acc, terminal.Callback.CName, acc, element)', 'cg.indent += "    "\n\tcg.line("%s = %s(%s, %s);", acc, terminal.Callback.CName, element, element)')]),
+        (BACKEND, 'cg.indent += "    "\n\tcg.line("%s = %s(%s, %s);", acc, cg.callback(e), acc, element)', 'cg.indent += "    "\n\tcg.line("%s = %s(%s, %s);", acc, cg.callback(e), element, element)')]),
     ("reverse-fused-stage-order", "./bin/optimization", "TestDataflowReferenceDifferential", [
         (BACKEND, 'for _, stage := range chain[1 : len(chain)-1] {', 'for i:=len(chain)-2; i>0; i-- { stage:=chain[i]')]),
     ("reverse-fused-element-order", "./bin/optimization", "TestDataflowReferenceDifferential", [
@@ -85,13 +85,14 @@ def run(name, package, tests, changes):
         return {"name": name, "status": status}
 
 
-original = fingerprints()
-results = [run("baseline", "./...", "TestDataflow|TestFusion|TestFilterLoopFusionStructure", [])]
-if results[0]["status"] != "PASS":
-    raise SystemExit("Baseline must pass")
-for name, package, tests, changes in MUTATIONS:
-    results.append(run(name, package, tests, changes))
-assert original == fingerprints(), "Working compiler changed"
-(OUTPUT / "results.json").write_text(json.dumps(results, indent=2) + "\n")
-print(f"Evidence: {OUTPUT}")
-raise SystemExit(0 if all(r["status"] in ("PASS", "KILLED") for r in results) else 1)
+if __name__ == "__main__":
+    original = fingerprints()
+    results = [run("baseline", "./...", "TestDataflow|TestFusion|TestFilterLoopFusionStructure", [])]
+    if results[0]["status"] != "PASS":
+        raise SystemExit("Baseline must pass")
+    for name, package, tests, changes in MUTATIONS:
+        results.append(run(name, package, tests, changes))
+    assert original == fingerprints(), "Working compiler changed"
+    (OUTPUT / "results.json").write_text(json.dumps(results, indent=2) + "\n")
+    print(f"Evidence: {OUTPUT}")
+    raise SystemExit(0 if all(r["status"] in ("PASS", "KILLED") for r in results) else 1)

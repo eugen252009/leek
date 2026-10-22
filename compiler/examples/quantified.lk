@@ -1,0 +1,25 @@
+fn square(x u32) u32 { return x * x }
+fn add(a u32, b u32) u32 { return a + b }
+
+fn calculate(n u32) u32 {
+    if n <= 100 {
+        return range(0, n) -> map(square) -> reduce(0, add)
+    }
+    return 0
+}
+
+fn partial(n u32) u32 {
+    if n <= 65536 {
+        return range(0, n) -> map(square) -> reduce(0, add)
+    }
+    return 0
+}
+
+fn unbounded(n u32) u32 {
+    return range(0, n) -> map(square) -> reduce(0, add)
+}
+
+impure fn main() {
+    print(calculate(100))
+    print(partial(2))
+}

@@ -26,7 +26,11 @@ func TestDataflowConstraints(t *testing.T) {
 	}
 	count := 0
 	for _, d := range f.Dataflow {
-		if d.Proof.Status != Unknown || d.Order != parser.ElementMajor || d.ElementRange == nil {
+		wantStage := Unknown
+		if d.Kind == parser.Range || d.Kind == parser.Filter {
+			wantStage = Proven
+		}
+		if d.Proof.Status != wantStage || d.Order != parser.ElementMajor || d.ElementRange == nil {
 			t.Fatalf("%+v", d)
 		}
 		if d.Kind == parser.Range && (d.Start == nil || d.End == nil || len(d.DomainFacts) != 2) {
@@ -40,7 +44,11 @@ func TestDataflowConstraints(t *testing.T) {
 		}
 		for _, o := range d.Requirements {
 			count++
-			if o.Proof.Status != Unknown || o.Environment != -1 || len(o.Origin.Via) == 0 || o.Origin.SemanticNode == nil {
+			want := Unknown
+			if d.Kind == parser.Filter {
+				want = Proven
+			} // constant nonzero divisor, now universally discharged
+			if o.Proof.Status != want || o.Environment < 0 || f.Environments[o.Environment].Domain != d.Quantified.Domain.Node || len(o.Origin.Via) == 0 || o.Origin.SemanticNode == nil {
 				t.Fatalf("invalid quantified requirement: %+v", o)
 			}
 		}

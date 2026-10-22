@@ -15,6 +15,13 @@ func DataflowTerminals(g *ProgramGraph) []*Expr {
 	sort.Slice(out, func(i, j int) bool { return g.Expressions[out[i]].Node.ID < g.Expressions[out[j]].Node.ID })
 	return out
 }
+func (cg *CodeGenerator) callback(e *Expr) string {
+	info := cg.graph.Expressions[e]
+	if route := cg.routes[info.Node]; route != "" {
+		return route
+	}
+	return info.Dataflow.Callback.CName
+}
 func (cg *CodeGenerator) iteratorDefinitions() {
 	cg.iterators = map[*Expr]string{}
 	for _, terminal := range DataflowTerminals(cg.graph) {
@@ -45,11 +52,11 @@ func (cg *CodeGenerator) iteratorDefinitions() {
 				cg.line("    %s element;", cg.mapType(d.InputType))
 				if d.Kind == Map {
 					cg.line("    if (!%s_next(s->input, &element)) return 0;", prev)
-					cg.line("    *out = %s(element);", d.Callback.CName)
+					cg.line("    *out = %s(element);", cg.callback(e))
 					cg.line("    return 1;")
 				} else {
 					cg.line("    while (%s_next(s->input, &element)) {", prev)
-					cg.line("        if (%s(element)) { *out = element; return 1; }", d.Callback.CName)
+					cg.line("        if (%s(element)) { *out = element; return 1; }", cg.callback(e))
 					cg.line("    }")
 					cg.line("    return 0;")
 				}
@@ -95,7 +102,7 @@ func (cg *CodeGenerator) dataflow(e *Expr) string {
 	last := cg.iterators[terminal.Input]
 	cg.line("while (%s_next(&%s, &%s)) {", last, previous, element)
 	cg.indent += "    "
-	cg.line("%s = %s(%s, %s);", acc, terminal.Callback.CName, acc, element)
+	cg.line("%s = %s(%s, %s);", acc, cg.callback(e), acc, element)
 	cg.indent = cg.indent[:len(cg.indent)-4]
 	cg.line("}")
 	return acc
@@ -116,12 +123,12 @@ func (cg *CodeGenerator) fusedDataflow(e *Expr, chain []*Expr, start, end string
 	for _, stage := range chain[1 : len(chain)-1] {
 		d := cg.graph.Expressions[stage].Dataflow
 		if d.Kind == Map {
-			element = cg.temp(d.ElementType, d.Callback.CName+"("+element+")")
+			element = cg.temp(d.ElementType, cg.callback(stage)+"("+element+")")
 		} else {
-			cg.line("if (!%s(%s)) continue;", d.Callback.CName, element)
+			cg.line("if (!%s(%s)) continue;", cg.callback(stage), element)
 		}
 	}
-	cg.line("%s = %s(%s, %s);", acc, terminal.Callback.CName, acc, element)
+	cg.line("%s = %s(%s, %s);", acc, cg.callback(e), acc, element)
 	cg.indent = cg.indent[:len(cg.indent)-4]
 	cg.line("}")
 	return acc

@@ -1,7 +1,9 @@
 # Proof-safe scalar loop fusion
 
 Status: implemented, experimental, opt-in through the existing `-optimize` flag.
-Canonical pull execution is independent and remains the default.
+Canonical pull execution is independent and remains the default. A subsequent
+[quantified proof consumer](dataflow-proof-optimization.md) can specialize
+callbacks independently of this fusion legality/strategy decision.
 
 ```sh
 cd compiler

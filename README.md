@@ -89,7 +89,10 @@ fn sum_squares(n u32) u32 {
 See [the complete example](compiler/examples/dataflow.lk) for `square`/`add`.
 [Collection semantics](docs/collection-semantics.md) define element-major callback
 and failure order. No public sequence type or domain-sized array is required.
-Quantified arithmetic safety remains UNKNOWN; callback checks are retained.
+[Quantified range analysis](docs/quantified-range-analysis.md) now derives
+path-scoped element/cardinality bounds and conservative unsigned-addition prefix
+invariants. Under `-optimize`, proven callback checks may be removed through the
+existing bounded specialization registry; unknown checks remain.
 With `-optimize`, [proof-safe fusion](docs/loop-fusion.md) replaces supported pull
 chains with a direct scalar loop without changing callback/failure order:
 
@@ -100,6 +103,18 @@ go run . -optimize -optimization-report /tmp/leek-dataflow.json -o /tmp/leek-dat
 Canonical execution is still the default. Fold and unsupported fusion patterns
 fall back to canonical iterators. See [dataflow qualification](qualification/declarative-dataflow.md)
 and [fusion qualification](qualification/loop-fusion.md) for actual evidence and limits.
+
+```sh
+go run . -constraints examples/quantified.lk
+go run . -optimize -optimization-report /tmp/leek-quantified.json -o /tmp/leek-quantified -graph /tmp/leek-quantified.dot examples/quantified.lk
+```
+
+For `n <= 100`, `range(0,n) -> map(square) -> reduce(0,add)` derives
+`element <= 99`, `square <= 9801`, `count <= 100`, and every additive prefix
+`<= 980100`. See [proof-gated dataflow arithmetic](docs/dataflow-proof-optimization.md)
+and its [qualification](qualification/dataflow-proof-optimization.md). Canonical
+execution remains checked; general folds/recurrences and exported quantified
+function-result contracts remain conservative.
 
 See [Pure Composition Specification](pure-composition.md),
 [qualification report](qualification/pure-composition.md), and

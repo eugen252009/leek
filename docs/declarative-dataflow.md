@@ -1,5 +1,12 @@
 # Declarative dataflow — implemented scalar foundation
 
+Subsequent extension: [quantified range analysis](quantified-range-analysis.md)
+now proves supported element and additive-prefix requirements, feeding the same
+specialization registry via [proof-gated dataflow arithmetic](dataflow-proof-optimization.md).
+Statements below about all quantified statuses being UNKNOWN describe the initial
+collection milestone; general/unmodeled cases and scalar result contracts still
+remain conservative.
+
 Status: parsing, semantic validation, canonical native execution, constraint
 inspection, and bounded proof-safe fusion are implemented and qualified for the
 subset below. See [collection semantics](collection-semantics.md),

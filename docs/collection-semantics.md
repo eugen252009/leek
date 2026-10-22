@@ -76,7 +76,9 @@ values, first arithmetic failure, and effects from setup/surrounding expressions
 A single direct loop can meet this rule without proving callbacks infallible,
 provided a structural legality check establishes the same ordered trace.
 
-Quantified arithmetic safety over a sequence is not assumed. Type/range facts,
+The [quantified range extension](quantified-range-analysis.md) can prove supported
+universal element and unsigned-additive-prefix requirements. Execution semantics
+above do not change. Quantified arithmetic safety over a sequence is not assumed. Type/range facts,
 callback requirements and their provenance must remain inspectable; unsupported
 quantified proofs are UNKNOWN. Neither fusion nor a sequence wrapper authorizes
 removing a callback's arithmetic checks.

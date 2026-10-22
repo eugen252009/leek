@@ -55,6 +55,8 @@ type KnownRange struct {
 // Environment is an immutable report snapshot of available premises, not a
 // minimal proof core. Reachable means "not demonstrated unreachable".
 type Environment struct {
+	Domain        string           `json:"domain,omitempty"` // nonempty actual-invocation scope, not function input
+	Stage         string           `json:"stage,omitempty"`
 	ID            int              `json:"id"`
 	PathCondition ID               `json:"path_condition"`
 	Reachable     bool             `json:"reachable"`

@@ -106,7 +106,14 @@ func (b *specializer) applicable(c *candidate, v parser.SpecializedFunction) con
 		if !found {
 			return unknown
 		}
-		o := b.functions[c.caller].Obligations[index]
+		ledger := b.functions[c.caller].Obligations
+		if bound.quantified {
+			ledger = b.functions[c.caller].QuantifiedObligations
+		}
+		if index < 0 || index >= len(ledger) {
+			return unknown
+		}
+		o := ledger[index]
 		if o.Origin.SemanticNode == nil || o.Origin.SemanticNode.ID != requirement.Operation {
 			return unknown
 		}

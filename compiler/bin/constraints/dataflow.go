@@ -2,9 +2,11 @@ package constraints
 
 import "leek/bin/parser"
 
-// These are per-element, success-conditional facts, NEVER scalar premises or
-// proof capabilities. Universal sequence safety is not solved by this MVP.
+// Per-element outputs are success-conditional. Quantified invocation premises
+// are separately tagged and never enter scalar traversal contexts. Only the
+// fresh graph-bound optimizer may consume universally discharged requirements.
 type DataflowInfo struct {
+	Quantified       *QuantifiedInfo     `json:"quantified,omitempty"`
 	Materialization  string              `json:"materialization"`
 	Node             string              `json:"node"`
 	Kind             parser.DataflowKind `json:"kind"`
@@ -101,6 +103,7 @@ func (s *functionState) dataflow(e *parser.Expr, guard ID) ID {
 			result = s.opaque(e, info.Type, "sequence result is conditional on all reached callbacks succeeding")
 		}
 	}
+	s.quantify(e, &record)
 	s.report.Dataflow = append(s.report.Dataflow, record)
 	return result
 }

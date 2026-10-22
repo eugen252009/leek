@@ -65,22 +65,23 @@ type CallInfo struct {
 }
 
 type FunctionReport struct {
-	Dataflow         []DataflowInfo `json:"dataflow,omitempty"`
-	Name             string         `json:"name"`
-	Pure             bool           `json:"pure"`
-	InputFacts       []Fact         `json:"input_facts"`
-	AuxiliaryFacts   []Fact         `json:"auxiliary_facts"`
-	Obligations      []Obligation   `json:"obligations"`
-	Precondition     ID             `json:"derived_precondition"`
-	PreconditionText string         `json:"derived_precondition_text"`
-	Proof            Proof          `json:"proof"`
-	Complete         bool           `json:"complete"`
-	Limitations      []string       `json:"limitations"`
-	Output           *ValueInfo     `json:"output,omitempty"`
-	Values           []ValueInfo    `json:"values"`
-	Calls            []CallInfo     `json:"calls"`
-	Environments     []Environment  `json:"environments"`
-	Returns          []ValueInfo    `json:"returns"`
+	QuantifiedObligations []Obligation   `json:"quantified_obligations,omitempty"`
+	Dataflow              []DataflowInfo `json:"dataflow,omitempty"`
+	Name                  string         `json:"name"`
+	Pure                  bool           `json:"pure"`
+	InputFacts            []Fact         `json:"input_facts"`
+	AuxiliaryFacts        []Fact         `json:"auxiliary_facts"`
+	Obligations           []Obligation   `json:"obligations"`
+	Precondition          ID             `json:"derived_precondition"`
+	PreconditionText      string         `json:"derived_precondition_text"`
+	Proof                 Proof          `json:"proof"`
+	Complete              bool           `json:"complete"`
+	Limitations           []string       `json:"limitations"`
+	Output                *ValueInfo     `json:"output,omitempty"`
+	Values                []ValueInfo    `json:"values"`
+	Calls                 []CallInfo     `json:"calls"`
+	Environments          []Environment  `json:"environments"`
+	Returns               []ValueInfo    `json:"returns"`
 }
 type Report struct {
 	Version       int               `json:"version"`
@@ -421,6 +422,12 @@ func (s *functionState) expr(e *parser.Expr, guard ID) ID {
 					result = a.substitute(summary.Output.Relation, mapping, memo)
 				} else {
 					result = yes
+				}
+				if !summary.Complete && info.Type != "" {
+					// An opaque callee output is not a function of substituted parameters.
+					// Reusing its identity across different calls would equate unrelated
+					// endpoints (e.g. two sequence reductions) and invent empty domains.
+					result = s.opaque(e, info.Type, "incomplete callee result has a call-site-local opaque identity")
 				}
 				// Pure incomplete callees may contain opaque float relations. They have
 				// no integer return relations inferred from rounded source spellings.

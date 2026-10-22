@@ -139,6 +139,15 @@ func (r *Resolver) resolveDataflow(e *Expr, info *ExprInfo) error {
 	return nil
 }
 
+// ResolvedCallee unifies ordinary calls and statically bound dataflow callbacks
+// for trusted routing. It does not make callbacks general function values.
+func ResolvedCallee(info *ExprInfo) *FunctionInfo {
+	if info.Dataflow != nil {
+		return info.Dataflow.Callback
+	}
+	return info.Callee
+}
+
 // Pipeline returns the semantic chain in execution order, including its terminal.
 func Pipeline(g *ProgramGraph, e *Expr) []*Expr {
 	if e == nil || g.Expressions[e] == nil || g.Expressions[e].Dataflow == nil {

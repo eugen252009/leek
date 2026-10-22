@@ -34,8 +34,9 @@ type Variant struct {
 	ReuseCount     int
 }
 type SpecializationResult struct {
-	Dataflow      []FusionDecision `json:"dataflow,omitempty"`
-	Code          string           `json:"-"`
+	Quantified    []QuantifiedDecision `json:"quantified_range,omitempty"`
+	Dataflow      []FusionDecision     `json:"dataflow,omitempty"`
+	Code          string               `json:"-"`
 	LocalElisions []Elision
 	Variants      []Variant
 	Witnesses     []Witness
@@ -56,12 +57,13 @@ func Generate(g *parser.ProgramGraph) (string, []Elision, error) {
 }
 
 type candidate struct {
-	f         *parser.FunctionInfo
-	checks    map[*parser.GraphNode]bool
-	children  map[*parser.GraphNode]*candidate
-	caller    string
-	path      []*parser.GraphNode
-	instances map[*parser.GraphNode]int
+	quantified bool // instances index the caller's separate quantified obligation ledger
+	f          *parser.FunctionInfo
+	checks     map[*parser.GraphNode]bool
+	children   map[*parser.GraphNode]*candidate
+	caller     string
+	path       []*parser.GraphNode
+	instances  map[*parser.GraphNode]int
 }
 
 func newCandidate(f *parser.FunctionInfo) *candidate {
@@ -181,6 +183,9 @@ func GenerateSpecialized(g *parser.ProgramGraph) (*SpecializationResult, error) 
 			}
 		}
 	}
+	if err := quantifiedCandidates(g, report, roots, functions, calls, local, implication); err != nil {
+		return nil, err
+	}
 	b := &specializer{local: local, counts: map[*parser.FunctionInfo]int{}, functions: functions, implication: implication,
 		records: map[string]*Variant{}, costs: map[*parser.FunctionInfo]int{}, proofCache: map[proofQuery]constraints.Proof{}}
 	routes := map[*parser.GraphNode]string{}
@@ -228,7 +233,7 @@ func GenerateSpecialized(g *parser.ProgramGraph) (*SpecializationResult, error) 
 	}
 	for n, name := range routes {
 		name = resolve(name)
-		if name == g.Expressions[n.SourceNode.(*parser.Expr)].Callee.CName {
+		if name == parser.ResolvedCallee(g.Expressions[n.SourceNode.(*parser.Expr)]).CName {
 			delete(routes, n)
 		} else {
 			routes[n] = name
@@ -294,7 +299,7 @@ func GenerateSpecialized(g *parser.ProgramGraph) (*SpecializationResult, error) 
 			n := g.Nodes[id]
 			actual = actualRoutes[n]
 			if actual == "" {
-				actual = g.Expressions[n.SourceNode.(*parser.Expr)].Callee.CName
+				actual = parser.ResolvedCallee(g.Expressions[n.SourceNode.(*parser.Expr)]).CName
 				actualRoutes = routes
 			} else {
 				for _, v := range variants {
@@ -320,6 +325,7 @@ func GenerateSpecialized(g *parser.ProgramGraph) (*SpecializationResult, error) 
 			}
 		}
 	}
+	out.Quantified = quantifiedDecisions(g, report, routes, b.records)
 	fused, decisions := fusionPlan(g, report)
 	out.Dataflow = decisions
 	out.Code, err = parser.NewCodeGenerator().GenerateDataflowPlan(g, local, routes, variants, fused)

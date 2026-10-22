@@ -6,7 +6,8 @@ syntax. It is now extended by [path-sensitive analysis](path-sensitive-constrain
 Statements below about absent conditionals/optimization describe the initial
 milestone, not the current compiler. Inspection itself remains analysis-only. The subsequent [dataflow extension](declarative-dataflow.md)
 adds explicitly quantified per-invocation callback requirements without claiming
-universal sequence safety; those remain UNKNOWN.
+universal sequence safety. The subsequent [quantified range analysis](quantified-range-analysis.md)
+proves a supported bounded subset; unsupported cases remain UNKNOWN.
 
 Initial MVP status: implemented, **analysis-only**. No language syntax was added. Runtime
 checks, evaluation order, effects, compilation acceptance, and the C backend are
