@@ -34,8 +34,8 @@ func run(args []string, stdout, stderr io.Writer) int {
 	output := fs.String("o", "app", "output executable path")
 	graph := fs.String("graph", "graph.dot", "output DOT graph path")
 	analysis := fs.Bool("constraints", false, "report advisory constraints as JSON without compiling or writing artifacts")
-	optimize := fs.Bool("optimize", false, "experimental: eliminate proven redundant unsigned arithmetic guards (default: checked everywhere)")
-	optimizationReport := fs.String("optimization-report", "", "write structured specialization decisions as JSON (requires -optimize)")
+	optimize := fs.Bool("optimize", false, "experimental: proof-guided scalar specialization and supported dataflow fusion (default: canonical checked execution)")
+	optimizationReport := fs.String("optimization-report", "", "write structured specialization and dataflow decisions as JSON (requires -optimize)")
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
@@ -104,6 +104,15 @@ func compile(opts options, stdout, stderr io.Writer) error {
 			fmt.Fprintf(stdout, "proof-gated: removed %d checked guards\n", len(result.LocalElisions))
 			for _, variant := range result.Variants {
 				fmt.Fprintf(stdout, "specialization: %s -> %s; removed %d guards; specialized %d calls; canonical preserved\n", variant.Function, variant.Name, len(variant.Eliminated), len(variant.Calls))
+			}
+			if len(result.Dataflow) > 0 {
+				fused := 0
+				for _, decision := range result.Dataflow {
+					if decision.Decision == "FUSED" {
+						fused++
+					}
+				}
+				fmt.Fprintf(stdout, "dataflow fusion: fused %d; canonical %d\n", fused, len(result.Dataflow)-fused)
 			}
 			fmt.Fprintf(stdout, "specialization policy: generated %d; reused %d; redundant avoided %d; additional units %d; budget exhausted %t\n", result.Summary.Generated, result.Summary.Reused, result.Summary.RedundantAvoided, result.Summary.AdditionalUnits, result.Summary.BudgetExhausted)
 		}

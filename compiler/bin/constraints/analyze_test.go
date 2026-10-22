@@ -287,7 +287,7 @@ func TestObligationBudgetIsExplicitUnknown(t *testing.T) {
 
 // CA-INSPECT and CA-PRESERVE: deterministic JSON; no mutation of the executable IR.
 func FuzzAnalysisReadOnly(f *testing.F) {
-	for _, source := range []string{compositionSource,
+	for _, source := range []string{compositionSource, dfSource,
 		"fn f(x u32) u32 { return (x+1)-(x+1) }",
 		"fn f(x i64) i64 { return x / -1 }",
 		"fn f(x u32) bool { return x != 0 && 12/x > 1 }",

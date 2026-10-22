@@ -74,10 +74,37 @@ go run . -optimize -o /tmp/leek-specialized -graph /tmp/leek-specialized.dot exa
 go run . -optimize -optimization-report /tmp/leek-policy.json -o /tmp/leek-policy -graph /tmp/leek-policy.dot examples/specialization-policy.lk
 ```
 
+## Declarative sequences
+
+Inline [declarative dataflow](docs/declarative-dataflow.md) supports integer
+`range` domains, pure static `map`/`filter` callbacks, ordered `reduce`, and
+ordered `fold` (including a different scalar state type):
+
+```leek
+fn sum_squares(n u32) u32 {
+    return range(0, n) -> map(square) -> reduce(0, add)
+}
+```
+
+See [the complete example](compiler/examples/dataflow.lk) for `square`/`add`.
+[Collection semantics](docs/collection-semantics.md) define element-major callback
+and failure order. No public sequence type or domain-sized array is required.
+Quantified arithmetic safety remains UNKNOWN; callback checks are retained.
+With `-optimize`, [proof-safe fusion](docs/loop-fusion.md) replaces supported pull
+chains with a direct scalar loop without changing callback/failure order:
+
+```sh
+go run . -optimize -optimization-report /tmp/leek-dataflow.json -o /tmp/leek-dataflow -graph /tmp/leek-dataflow.dot examples/dataflow.lk
+```
+
+Canonical execution is still the default. Fold and unsupported fusion patterns
+fall back to canonical iterators. See [dataflow qualification](qualification/declarative-dataflow.md)
+and [fusion qualification](qualification/loop-fusion.md) for actual evidence and limits.
+
 See [Pure Composition Specification](pure-composition.md),
 [qualification report](qualification/pure-composition.md), and
-[examples](compiler/examples/). Collections, loops,
-recursion, explicit constraint annotations/enforcement, external/indirect calls,
+[examples](compiler/examples/). First-class collections/arrays, source loops,
+SIMD, parallel execution, recursion, explicit constraint annotations/enforcement, external/indirect calls,
 floating-point arithmetic, and broader optimization passes remain deferred. Noncapturing nested functions
 work; outer captures receive an unsupported-feature diagnostic.
 

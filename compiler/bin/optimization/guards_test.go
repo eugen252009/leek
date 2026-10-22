@@ -326,6 +326,7 @@ func TestResourceLimitedAnalysisKeepsChecks(t *testing.T) {
 	}
 }
 func FuzzOptimizationPreservesIR(f *testing.F) {
+	f.Add(dataflowSource("filter(even) -> map(square)", "reduce(initial,add)"))
 	f.Add(proofCases)
 	f.Add(`fn f(x u8) u8 { if x > 0 { return x-1 } return 0 }`)
 	f.Fuzz(func(t *testing.T, source string) {

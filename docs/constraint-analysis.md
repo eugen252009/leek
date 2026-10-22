@@ -4,7 +4,9 @@ Historical milestone: the initial MVP below was **analysis-only**, with no new
 syntax. It is now extended by [path-sensitive analysis](path-sensitive-constraints.md)
 (report version 2) and a separate [opt-in proof consumer](proof-gated-optimization.md).
 Statements below about absent conditionals/optimization describe the initial
-milestone, not the current compiler. Inspection itself remains analysis-only.
+milestone, not the current compiler. Inspection itself remains analysis-only. The subsequent [dataflow extension](declarative-dataflow.md)
+adds explicitly quantified per-invocation callback requirements without claiming
+universal sequence safety; those remain UNKNOWN.
 
 Initial MVP status: implemented, **analysis-only**. No language syntax was added. Runtime
 checks, evaluation order, effects, compilation acceptance, and the C backend are

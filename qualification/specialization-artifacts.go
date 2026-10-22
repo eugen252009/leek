@@ -46,13 +46,19 @@ func main() {
 	check(err)
 	after, err := parser.NewCodeGenerator().Generate(g)
 	check(err)
-	if canonical != after || dot != g.ToDOT() || len(r.Variants) == 0 {
-		panic("IR preservation or actual specialization failed")
+	fused := 0
+	for _, d := range r.Dataflow {
+		if d.Decision == "FUSED" {
+			fused++
+		}
+	}
+	if canonical != after || dot != g.ToDOT() || (len(r.Variants) == 0 && fused == 0) {
+		panic("IR preservation or actual specialization/fusion failed")
 	}
 	check(os.WriteFile(filepath.Join(dir, "canonical.c"), []byte(canonical), 0644))
 	check(os.WriteFile(filepath.Join(dir, "optimized.c"), []byte(r.Code), 0644))
 	check(os.WriteFile(filepath.Join(dir, "semantic.dot"), []byte(dot), 0644))
-	for name, value := range map[string]any{"analysis": r.Analysis, "policy": r, "plan": map[string]any{"local_elisions": r.LocalElisions, "variants": r.Variants, "eligible_witnesses": r.Witnesses}} {
+	for name, value := range map[string]any{"analysis": r.Analysis, "policy": r, "plan": map[string]any{"local_elisions": r.LocalElisions, "variants": r.Variants, "eligible_witnesses": r.Witnesses, "dataflow": r.Dataflow}} {
 		data, err := json.MarshalIndent(value, "", "  ")
 		check(err)
 		check(os.WriteFile(filepath.Join(dir, name+".json"), append(data, '\n'), 0644))
@@ -80,5 +86,5 @@ func main() {
 	}
 	fingerprints := fmt.Sprintf("%x  canonical.c\n%x  optimized.c\n", sha256.Sum256([]byte(canonical)), sha256.Sum256([]byte(r.Code)))
 	check(os.WriteFile(filepath.Join(dir, "SHA256SUMS"), []byte(fingerprints), 0644))
-	fmt.Printf("%d emitted variants; C/DOT preservation and O0/O3 UBSan outputs verified. Evidence: %s\n", len(r.Variants), dir)
+	fmt.Printf("%d emitted variants; %d fused pipelines; C/DOT preservation and O0/O3 UBSan outputs verified. Evidence: %s\n", len(r.Variants), fused, dir)
 }

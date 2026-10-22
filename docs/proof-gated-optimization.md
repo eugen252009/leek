@@ -1,5 +1,9 @@
 # Proof-gated guard elimination
 
+Subsequent extension: [proof-safe dataflow fusion](loop-fusion.md) uses a separate
+trace-equivalence obligation, not an assumption that callbacks are infallible.
+The scalar guard/specialization rules below remain unchanged.
+
 Status: experimental, **off by default**, deliberately narrower than constraint
 analysis. Canonical checked arithmetic remains the semantic authority.
 

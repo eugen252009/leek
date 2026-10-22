@@ -242,6 +242,16 @@ operation from an unexecuted path is not legal merely because it is pure.
 
 ## 8. Implicit analysis and future contracts/collections
 
+**Subsequent implemented extension:** inline `range`, `map`, `filter`, ordered
+`reduce` and `fold` now have distinct semantic dataflow identities. See
+[declarative dataflow](docs/declarative-dataflow.md) and
+[collection semantics](docs/collection-semantics.md) for typing, per-element
+failure order, setup effects and scope-bound representation. Optional
+[fusion](docs/loop-fusion.md) preserves that order; purity alone never permits
+reordering failing callbacks. The earlier broad collection sketch below remains
+future design beyond this limited scalar-sequence subset.
+
+
 For deterministic pure functions with complete definedness contracts:
 
 ```text
@@ -265,10 +275,10 @@ and runtime enforcement remain future work. A solver timeout or
 unsupported expression is unknown, never proof. No constraint syntax, guards
 for user contracts, solver dependency, or `_` argument placement is added here.
 
-`range`, `map`, `filter`, `gather`, `scatter`, `reduce`, and `fold` remain distinct
-future operations. They require collection types and explicit ordering,
-collision, bounds, and arithmetic semantics; they are not generic ordinary
-functions silently treated as optimization intrinsics in this implementation.
+`gather` and `scatter` remain deferred operations requiring explicit indexed
+read/write, collision, bounds, and arithmetic semantics. General collection
+`range`/`map`/`filter`/`reduce`/`fold` APIs remain future design; the implemented
+inline scalar subset above has explicit semantic nodes rather than opaque calls.
 Conditional `if`/`else` blocks are now implemented as lexical child scopes;
 see [the control-flow specification](docs/path-sensitive-constraints.md).
 Direct pure calls and composition now share reusable

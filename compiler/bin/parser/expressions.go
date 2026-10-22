@@ -82,6 +82,8 @@ const (
 )
 
 type ExprInfo struct {
+	Dataflow     *DataflowOp   // semantic sequence operation, not an opaque ordinary call
+	Reference    *FunctionInfo // static callback reference; never a runtime function value
 	Type         string
 	Effects      EffectSet // Whole expression, including source and extra arguments.
 	StageEffects EffectSet // Composition callee only; always none after validation.

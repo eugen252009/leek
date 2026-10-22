@@ -68,6 +68,7 @@ print(x) print(y)
 
 func FuzzParserAndResolver(f *testing.F) {
 	for _, seed := range []string{
+		sequencePrelude + `fn f(n u32) u32 { return range(0,n) -> filter(even) -> map(square) -> reduce(0,add) }`,
 		"", "fn main() {}", "fn f(x u32) u32 { return x -> f }",
 		"fn f(x i64) i64 { return -9223372036854775808 }",
 		"fn f(x bool) bool { return !x || false }",

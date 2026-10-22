@@ -65,21 +65,22 @@ type CallInfo struct {
 }
 
 type FunctionReport struct {
-	Name             string        `json:"name"`
-	Pure             bool          `json:"pure"`
-	InputFacts       []Fact        `json:"input_facts"`
-	AuxiliaryFacts   []Fact        `json:"auxiliary_facts"`
-	Obligations      []Obligation  `json:"obligations"`
-	Precondition     ID            `json:"derived_precondition"`
-	PreconditionText string        `json:"derived_precondition_text"`
-	Proof            Proof         `json:"proof"`
-	Complete         bool          `json:"complete"`
-	Limitations      []string      `json:"limitations"`
-	Output           *ValueInfo    `json:"output,omitempty"`
-	Values           []ValueInfo   `json:"values"`
-	Calls            []CallInfo    `json:"calls"`
-	Environments     []Environment `json:"environments"`
-	Returns          []ValueInfo   `json:"returns"`
+	Dataflow         []DataflowInfo `json:"dataflow,omitempty"`
+	Name             string         `json:"name"`
+	Pure             bool           `json:"pure"`
+	InputFacts       []Fact         `json:"input_facts"`
+	AuxiliaryFacts   []Fact         `json:"auxiliary_facts"`
+	Obligations      []Obligation   `json:"obligations"`
+	Precondition     ID             `json:"derived_precondition"`
+	PreconditionText string         `json:"derived_precondition_text"`
+	Proof            Proof          `json:"proof"`
+	Complete         bool           `json:"complete"`
+	Limitations      []string       `json:"limitations"`
+	Output           *ValueInfo     `json:"output,omitempty"`
+	Values           []ValueInfo    `json:"values"`
+	Calls            []CallInfo     `json:"calls"`
+	Environments     []Environment  `json:"environments"`
+	Returns          []ValueInfo    `json:"returns"`
 }
 type Report struct {
 	Version       int               `json:"version"`
@@ -312,7 +313,9 @@ func (s *functionState) expr(e *parser.Expr, guard ID) ID {
 	a := s.b.a
 	info := s.b.g.Expressions[e]
 	result := unknown
-	if info.Constant != "" {
+	if info.Dataflow != nil {
+		result = s.dataflow(e, guard)
+	} else if info.Constant != "" {
 		switch info.Type {
 		case "bool":
 			result = no

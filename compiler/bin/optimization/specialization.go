@@ -34,7 +34,8 @@ type Variant struct {
 	ReuseCount     int
 }
 type SpecializationResult struct {
-	Code          string `json:"-"`
+	Dataflow      []FusionDecision `json:"dataflow,omitempty"`
+	Code          string           `json:"-"`
 	LocalElisions []Elision
 	Variants      []Variant
 	Witnesses     []Witness
@@ -319,7 +320,9 @@ func GenerateSpecialized(g *parser.ProgramGraph) (*SpecializationResult, error) 
 			}
 		}
 	}
-	out.Code, err = parser.NewCodeGenerator().GenerateSpecializedChecks(g, local, routes, variants)
+	fused, decisions := fusionPlan(g, report)
+	out.Dataflow = decisions
+	out.Code, err = parser.NewCodeGenerator().GenerateDataflowPlan(g, local, routes, variants, fused)
 	return out, err
 }
 

@@ -110,6 +110,14 @@ func (r *Resolver) Resolve(statements []Statement) (*ProgramGraph, error) {
 				info.Effects |= ci.Effects
 				info.MayFail = info.MayFail || ci.MayFail
 			}
+			if info.Dataflow != nil && info.Dataflow.Callback != nil {
+				callback := info.Dataflow.Callback
+				if callback.Effects != EffectNone {
+					return nil, sourceError(e.Pos, "dataflow %s requires a transitively pure callback; %q is effectful", info.Dataflow.Kind, callback.Decl.Name)
+				}
+				info.StageEffects = callback.Effects
+				info.MayFail = info.MayFail || callback.MayFail
+			}
 			if info.Callee != nil {
 				info.Effects |= info.Callee.Effects
 				info.MayFail = info.MayFail || info.Callee.MayFail
@@ -167,7 +175,7 @@ func (r *Resolver) collect(ss []Statement, parent *FunctionInfo) error {
 		if !ok {
 			continue
 		}
-		if _, ok := r.Graph.Functions[f.Name]; ok || f.Name == "print" {
+		if _, ok := r.Graph.Functions[f.Name]; ok || f.Name == "print" || collectionName(f.Name) {
 			return sourceError(f.Pos, "duplicate or reserved function %q", f.Name)
 		}
 		if f.ReturnType != "" && !validType(f.ReturnType) {
@@ -361,6 +369,13 @@ func sourceError(pos SourcePos, format string, args ...interface{}) error {
 	return fmt.Errorf("%s:%d:%d: semantic error: %s", pos.Filename, pos.Line, pos.Column, fmt.Sprintf(format, args...))
 }
 func exprChildren(e *Expr) []*Expr {
+	if e.Kind == "composition" && collectionName(e.Name) {
+		out := []*Expr{e.Left}
+		if (e.Name == "reduce" || e.Name == "fold") && len(e.Args) > 0 {
+			out = append(out, e.Args[0])
+		}
+		return out
+	}
 	out := []*Expr{}
 	if e.Left != nil {
 		out = append(out, e.Left)
@@ -410,6 +425,11 @@ func (r *Resolver) hint(e *Expr) string {
 			return "bool"
 		}
 	case "call", "composition":
+		if (e.Name == "reduce" || e.Name == "fold") && len(e.Args) == 2 && e.Args[1].Kind == "name" {
+			if f := r.Graph.Functions[e.Args[1].Name]; f != nil {
+				return f.Decl.ReturnType
+			}
+		}
 		if f := r.Graph.Functions[e.Name]; f != nil {
 			return f.Decl.ReturnType
 		}
@@ -433,6 +453,9 @@ func (r *Resolver) resolveExpr(e *Expr, expected string) (*ExprInfo, error) {
 	info := &ExprInfo{}
 	fail := func(format string, args ...interface{}) (*ExprInfo, error) {
 		return nil, sourceError(e.Pos, format, args...)
+	}
+	if expected == "$sequence" && !((e.Kind == "call" || e.Kind == "composition") && collectionName(e.Name)) {
+		return fail("dataflow stage requires a sequence input")
 	}
 	switch e.Kind {
 	case "literal":
@@ -535,6 +558,12 @@ func (r *Resolver) resolveExpr(e *Expr, expected string) (*ExprInfo, error) {
 			info.MayFail = true
 		}
 	case "call", "composition":
+		if collectionName(e.Name) {
+			if err := r.resolveDataflow(e, info); err != nil {
+				return nil, err
+			}
+			break
+		}
 		callee, err := r.function(e.Name, e.Pos)
 		if err != nil {
 			return nil, err
@@ -576,7 +605,14 @@ func (r *Resolver) resolveExpr(e *Expr, expected string) (*ExprInfo, error) {
 	default:
 		return fail("unsupported expression %q", e.Kind)
 	}
-	if expected != "" && info.Type != expected {
+	if isSequence(info.Type) && expected != "$sequence" {
+		return fail("sequence must be consumed inline by reduce or fold")
+	}
+	if expected == "$sequence" {
+		if !isSequence(info.Type) {
+			return fail("dataflow stage requires a sequence input")
+		}
+	} else if expected != "" && info.Type != expected {
 		return fail("type mismatch: expected %s, got %s", expected, typeLabel(info.Type))
 	}
 	// Constant unary expressions deliberately retain their source subtree; it is
@@ -602,6 +638,9 @@ func (r *Resolver) resolveExpr(e *Expr, expected string) (*ExprInfo, error) {
 	}
 	if info.Binding != nil {
 		r.addEdge(info.Binding, node, DataEdge)
+	}
+	if info.Dataflow != nil && info.Dataflow.Reference != nil {
+		r.addEdge(r.Graph.Expressions[info.Dataflow.Reference].Node, node, DataEdge)
 	}
 	r.Graph.Expressions[e] = info
 	r.exprOrder[r.current] = append(r.exprOrder[r.current], e)

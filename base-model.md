@@ -5,6 +5,9 @@
 > It retains AST evaluation/short-circuit structure alongside value/effect edges;
 > DOT alone is not a scheduler. Function-call recursion is distinct from cyclic
 > value dependencies and is deferred, not permanently forbidden by this model.
+> Inline sequence operations now retain distinct typed semantic dataflow nodes;
+> see [declarative dataflow](docs/declarative-dataflow.md). Canonical pull and fused
+> scalar strategies consume the same representation without changing failure order.
 > `axioms.md` remains authoritative where older terminology differs.
 
 # 1. Core Model

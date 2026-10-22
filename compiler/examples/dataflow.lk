@@ -1,0 +1,22 @@
+fn square(x u32) u32 { return x * x }
+fn add(a u32, b u32) u32 { return a + b }
+fn is_even(x u32) bool { return x % 2 == 0 }
+fn accumulate(state u32, value u32) u32 { return state * 2 + value }
+
+fn sum_squares(n u32) u32 {
+    return range(0, n) -> map(square) -> reduce(0, add)
+}
+
+fn even_squares(n u32) u32 {
+    return range(0, n) -> filter(is_even) -> map(square) -> reduce(0, add)
+}
+
+fn ordered_state(n u32) u32 {
+    return range(0, n) -> fold(0, accumulate)
+}
+
+impure fn main() {
+    print(sum_squares(5))
+    print(even_squares(6))
+    print(ordered_state(4))
+}

@@ -7,13 +7,15 @@ import (
 )
 
 type CodeGenerator struct {
-	builder strings.Builder
-	graph   *ProgramGraph
-	vars    map[*GraphNode]string
-	serial  int
-	indent  string
-	proven  map[*GraphNode]bool
-	routes  map[*GraphNode]string
+	builder   strings.Builder
+	graph     *ProgramGraph
+	vars      map[*GraphNode]string
+	serial    int
+	indent    string
+	proven    map[*GraphNode]bool
+	routes    map[*GraphNode]string
+	fused     map[*GraphNode]bool
+	iterators map[*Expr]string
 }
 
 // SpecializedFunction is a transient trusted lowering plan for one exact body.
@@ -51,6 +53,14 @@ func (cg *CodeGenerator) generate(graph *ProgramGraph, proven map[*GraphNode]boo
 	return cg.generatePlan(graph, proven, nil, nil)
 }
 func (cg *CodeGenerator) generatePlan(graph *ProgramGraph, proven map[*GraphNode]bool, routes map[*GraphNode]string, variants []SpecializedFunction) (string, error) {
+	return cg.GenerateDataflowPlan(graph, proven, routes, variants, nil)
+}
+
+// GenerateDataflowPlan is a trusted fresh-proof lowering boundary. Fusion decisions
+// must come from optimization; canonical generation always supplies nil.
+func (cg *CodeGenerator) GenerateDataflowPlan(graph *ProgramGraph, proven map[*GraphNode]bool, routes map[*GraphNode]string, variants []SpecializedFunction, fused map[*GraphNode]bool) (string, error) {
+	cg.fused = fused
+	defer func() { cg.fused = nil; cg.iterators = nil }()
 	cg.proven = proven
 	cg.routes = routes
 	defer func() { cg.proven = nil; cg.routes = nil }()
@@ -70,6 +80,7 @@ func (cg *CodeGenerator) generatePlan(graph *ProgramGraph, proven map[*GraphNode
 	for _, v := range variants {
 		cg.line("static %s;", cg.signature(v.Function, v.Name))
 	}
+	cg.iteratorDefinitions()
 	for _, node := range sortedFunctionNodes(graph) {
 		f := graph.Functions[node.ID]
 		cg.function(f, f.CName)
@@ -171,6 +182,9 @@ func location(e *Expr) string {
 }
 func (cg *CodeGenerator) expr(e *Expr) string {
 	info := cg.graph.Expressions[e]
+	if info.Dataflow != nil {
+		return cg.dataflow(e)
+	}
 	if info.Constant != "" {
 		return cg.temp(info.Type, cg.constant(info))
 	}
